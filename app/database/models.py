@@ -72,6 +72,13 @@ def save_post(channel_id, channel_title, channel_username, message_id, text, mes
         )
         if duplicate_constraint not in str(error):
             raise
+        if media_path:
+            cursor.execute("""
+                UPDATE posts
+                SET media_path = ?
+                WHERE channel_id = ? AND message_id = ?
+            """, (media_path, channel_id, message_id))
+            conn.commit()
         print(f"⚠️ Duplicate message ignored ({channel_id} / {message_id})")
         return False
 

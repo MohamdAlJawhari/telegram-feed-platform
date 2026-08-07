@@ -47,15 +47,28 @@ class DatabaseMigrationTest(unittest.TestCase):
                     media_path=None,
                     date="2026-08-07",
                 )
+                save_post(
+                    channel_id="12345",
+                    channel_title="News",
+                    channel_username="news",
+                    message_id=7,
+                    text="Legacy post",
+                    message_type="photo",
+                    media_path="12345/7.jpg",
+                    date="2026-08-07",
+                )
 
                 connection = sqlite3.connect(database.DATABASE_NAME)
                 rows = connection.execute("""
-                    SELECT channel_id, channel_username, message_id
+                    SELECT channel_id, channel_username, message_id, media_path
                     FROM posts
                 """).fetchall()
                 connection.close()
 
-                self.assertEqual(rows, [("12345", "news", 7)])
+                self.assertEqual(
+                    rows,
+                    [("12345", "news", 7, "12345/7.jpg")],
+                )
             finally:
                 database.DATABASE_NAME = original_database_name
 

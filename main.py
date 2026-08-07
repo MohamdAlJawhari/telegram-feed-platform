@@ -1,8 +1,11 @@
 # http://127.0.0.1:8000/channels
 import asyncio
 
+from pathlib import Path
+
 from fastapi import FastAPI
 from fastapi.responses import Response
+from fastapi.staticfiles import StaticFiles
 
 from app.database.database import create_database
 from app.database.models import get_all_posts
@@ -11,6 +14,14 @@ from app.telegram.telegram_client import start_telegram
 
 app = FastAPI()
 
+MEDIA_FOLDER = Path("data/media")
+MEDIA_FOLDER.mkdir(parents=True, exist_ok=True)
+
+app.mount(
+    "/media",
+    StaticFiles(directory=MEDIA_FOLDER),
+    name="media",
+)
 
 @app.on_event("startup")
 async def startup_event():

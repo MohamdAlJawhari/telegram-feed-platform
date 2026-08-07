@@ -83,7 +83,11 @@ async def save_telegram_message(channel, message) -> None:
     media_path = None
     if message_type != "text":
         try:
-            media_path = await download_media(message, channel_id)
+            media_path = await download_media(
+                message,
+                channel_id,
+                channel_username,
+            )
             print(f"Media saved: {media_path}")
         except Exception as error:
             # Media is optional: preserve the post even when its download fails.
