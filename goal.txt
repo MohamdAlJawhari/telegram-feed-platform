@@ -1,0 +1,5 @@
+python -m uvicorn main:app --reload
+
+& "$env:USERPROFILE\Downloads\cloudflared.exe" tunnel --url http://127.0.0.1:8000
+OR
+cd Downloads && .\cloudflared.exe tunnel --url http://127.0.0.1:8000
