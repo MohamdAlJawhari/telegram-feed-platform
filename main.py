@@ -4,15 +4,17 @@ import asyncio
 from fastapi import FastAPI
 from fastapi.responses import Response
 
+from app.database.database import create_database
 from app.database.models import get_all_posts
 from app.rss.rss import generate_rss
 from app.telegram.telegram_client import start_telegram
 
 app = FastAPI()
 
+
 @app.on_event("startup")
 async def startup_event():
-
+    create_database()
     asyncio.create_task(start_telegram())
     
 @app.get("/")
@@ -32,11 +34,14 @@ def posts():
     for post in posts:
 
         result.append({
-            "channel_title": post[0],
-            "channel_username": post[1],
-            "message_id": post[2],
-            "text": post[3],
-            "date": post[4]
+            "channel_id": post[0],
+            "channel_title": post[1],
+            "channel_username": post[2],
+            "message_id": post[3],
+            "text": post[4],
+            "message_type": post[5],
+            "media_path": post[6],
+            "date": post[7]
         })
 
     return result

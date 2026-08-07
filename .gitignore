@@ -14,6 +14,9 @@ sessions/
 *.sqlite
 *.sqlite3
 
+# Downloaded Telegram media for all channels
+data/media/
+
 # Python bytecode and caches
 __pycache__/
 *.py[cod]

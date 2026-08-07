@@ -1,5 +1,5 @@
 from feedgen.feed import FeedGenerator
-from app.database.models import get_posts_by_channel, get_all_posts
+from app.database.models import get_posts_by_channel
 
 
 def generate_rss(channel_name):
@@ -23,7 +23,7 @@ def generate_rss(channel_name):
 
     posts.reverse()
 
-    for channel_title, channel_username, message_id, text, message_type, date in posts:
+    for channel_id, channel_title, channel_username, message_id, text, message_type, media_path, date in posts:
 
         fe = fg.add_entry()
 
@@ -40,7 +40,7 @@ def generate_rss(channel_name):
 
         # ---------- GUID ----------
         fe.guid(
-            f"{channel_username}-{message_id}",
+            f"{channel_id}-{message_id}",
             permalink=False
         )
 

@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from telethon import TelegramClient, events
 
 from app.database.models import save_post
-
+from app.media.media_service import download_media
 
 # --------------------------------------------------
 # Configuration
@@ -36,9 +36,8 @@ client = TelegramClient(
 
 # You can use either channel titles or usernames
 ALLOWED_CHANNELS = {
-    "test n8n",
     "testrssn8n",
-    "almayadeen",
+    "bintjbeilnews",
 }
 
 
@@ -73,18 +72,31 @@ def is_allowed_channel(channel) -> bool:
     )
 
 
-def save_telegram_message(channel, message) -> None:
+async def save_telegram_message(channel, message) -> None:
     """Save one Telegram message to the database."""
 
     channel_title = getattr(channel, "title", "") or "Unknown channel"
     channel_username = getattr(channel, "username", "") or ""
+    channel_id = str(channel.id)
     message_type = get_message_type(message)
+
+    media_path = None
+    if message_type != "text":
+        try:
+            media_path = await download_media(message, channel_id)
+            print(f"Media saved: {media_path}")
+        except Exception as error:
+            # Media is optional: preserve the post even when its download fails.
+            print(f"⚠️ Media download failed; saving post without media: {error}")
+
     save_post(
+        channel_id=channel_id,
         channel_title=channel_title,
         channel_username=channel_username,
         message_id=message.id,
         text=message.text or "",
         message_type=message_type,
+        media_path=media_path,
         date=message.date,
     )
 
@@ -106,7 +118,7 @@ async def new_message_handler(event) -> None:
     channel = await event.get_chat()
     if not is_allowed_channel(channel):
         return
-    save_telegram_message(
+    await save_telegram_message(
         channel=channel,
         message=event.message,
     )
@@ -132,7 +144,7 @@ async def test_connection(
             return
         latest_message = messages[0]
         print("\nLatest message:\n")
-        save_telegram_message(
+        await save_telegram_message(
             channel=channel,
             message=latest_message,
         )
