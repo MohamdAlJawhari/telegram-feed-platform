@@ -1,8 +1,34 @@
+import os
 import shutil
 from pathlib import Path
 
 
 MEDIA_ROOT = Path("data/media")
+
+def get_media_root() -> Path:
+    """
+    Returns the root media folder.
+    """
+    return MEDIA_ROOT
+
+
+def build_local_media_path(relative_path: str) -> Path:
+    """
+    Convert: testRssN8n/88.jpg
+    into: data/media/testRssN8n/88.jpg
+    """
+    return MEDIA_ROOT / relative_path
+
+
+def build_public_media_url(relative_path: str) -> str:
+    """
+    Convert: testRssN8n/88.jpg
+    into: http://127.0.0.1:8000/media/testRssN8n/88.jpg
+    """
+
+    base_url = os.getenv("BASE_URL", "http://127.0.0.1:8000")
+    return f"{base_url}/media/{relative_path}"
+
 
 def get_relative_media_path(channel_key: str, filename: str) -> str:
     """
@@ -19,12 +45,10 @@ def get_channel_folder(channel_key: str) -> Path:
     """
 
     folder = MEDIA_ROOT / channel_key
-
     folder.mkdir(
         parents=True,
         exist_ok=True
     )
-
     return folder
 
 async def download_media(message, channel_id: str, channel_username: str = "",):

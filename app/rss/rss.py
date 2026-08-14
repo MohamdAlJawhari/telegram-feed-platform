@@ -1,3 +1,6 @@
+import mimetypes
+
+from app.media.media_service import build_public_media_url
 from feedgen.feed import FeedGenerator
 from app.database.models import get_posts_by_channel
 
@@ -23,8 +26,16 @@ def generate_rss(channel_name):
 
     posts.reverse()
 
-    for channel_id, channel_title, channel_username, message_id, text, message_type, media_path, date in posts:
-
+    for (
+        channel_id,
+        channel_title,
+        channel_username,
+        message_id,
+        text,
+        message_type,
+        media_path,
+        date,
+    ) in posts:
         fe = fg.add_entry()
 
         # ---------- Title ----------
@@ -51,6 +62,20 @@ def generate_rss(channel_name):
         if channel_username:
             fe.link(
                 href=f"https://t.me/{channel_username}/{message_id}"
+            )
+
+        if media_path:
+            media_url = build_public_media_url(media_path)
+
+            mime_type = (
+                mimetypes.guess_type(media_path)[0]
+                or "application/octet-stream"
+            )
+
+            fe.enclosure(
+                media_url,
+                0,
+                mime_type,
             )
 
     return fg.rss_str(pretty=True)
