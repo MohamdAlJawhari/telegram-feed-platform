@@ -12,10 +12,12 @@ from app.database.models import get_all_posts
 from app.rss.rss import generate_rss
 from app.telegram.telegram_client import start_telegram
 from app.api.channels import router as channels_router
+from app.dashboard.routes import router as dashboard_router
 
 app = FastAPI()
 
 app.include_router(channels_router)
+app.include_router(dashboard_router)
 
 MEDIA_FOLDER = Path("data/media")
 MEDIA_FOLDER.mkdir(parents=True, exist_ok=True)

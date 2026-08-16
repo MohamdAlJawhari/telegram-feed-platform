@@ -214,6 +214,27 @@ def get_enabled_channels():
 
     return rows
 
+def get_all_channels():
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            channel_id,
+            channel_title,
+            channel_username,
+            enabled
+        FROM channels
+        ORDER BY channel_title
+    """)
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return rows
+
 def set_channel_enabled(
     channel_id: str,
     enabled: bool,

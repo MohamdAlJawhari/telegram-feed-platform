@@ -1,0 +1,99 @@
+<h1>Telegram Feed Platform</h1>
+
+<form action="/dashboard/add-channel" method="post">
+
+<input
+    type="text"
+    name="username"
+    placeholder="Telegram username"
+/>
+
+<button>Add Channel</button>
+
+</form>
+
+<hr>
+
+<table border="1">
+
+<tr>
+
+<th>Enabled</th>
+
+<th>Title</th>
+
+<th>Username</th>
+
+<th>RSS</th>
+
+<th>API</th>
+
+<th>Delete</th>
+
+</tr>
+
+{% for channel in channels %}
+
+<tr>
+
+<td>
+
+{{ "✅" if channel[3] else "❌" }}
+
+</td>
+
+<td>
+
+{{ channel[1] }}
+
+</td>
+
+<td>
+
+@{{ channel[2] }}
+
+</td>
+
+<td>
+
+<a href="/rss/{{ channel[2] }}">
+
+RSS
+
+</a>
+
+</td>
+
+<td>
+
+<a href="/posts">
+
+API
+
+</a>
+
+</td>
+
+<td>
+
+Delete
+
+</td>
+
+</tr>
+
+{% endfor %}
+
+</table>
+
+{% if success %}
+<p style="color:green;">
+    ✅ Channel added successfully.
+</p>
+{% endif %}
+
+{% if error %}
+<p style="color:red;">
+    ❌ Telegram channel not found.
+</p>
+{% endif %}
