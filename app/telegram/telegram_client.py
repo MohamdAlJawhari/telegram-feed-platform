@@ -4,7 +4,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 
-from app.database.models import save_post
+from app.database.models import upsert_channel, save_post, is_channel_enabled
 from app.media.media_service import download_media
 
 # --------------------------------------------------
@@ -34,13 +34,6 @@ client = TelegramClient(
 )
 
 
-# You can use either channel titles or usernames
-ALLOWED_CHANNELS = {
-    "testrssn8n",
-    "bintjbeilnews",
-}
-
-
 # --------------------------------------------------
 # Helper functions
 # --------------------------------------------------
@@ -59,17 +52,6 @@ def get_message_type(message) -> str:
     if message.document:
         return "document"
     return "text"
-
-
-def is_allowed_channel(channel) -> bool:
-    """Check the channel title and username."""
-
-    channel_title = (getattr(channel, "title", "") or "").lower()
-    channel_username = (getattr(channel, "username", "") or "").lower()
-    return (
-        channel_title in ALLOWED_CHANNELS
-        or channel_username in ALLOWED_CHANNELS
-    )
 
 
 async def save_telegram_message(channel, message) -> None:
@@ -117,11 +99,25 @@ async def save_telegram_message(channel, message) -> None:
 
 @client.on(events.NewMessage)
 async def new_message_handler(event) -> None:
-    """Receive and save new messages from allowed channels."""
+    """Register the channel, then save messages from enabled channels."""
 
     channel = await event.get_chat()
-    if not is_allowed_channel(channel):
+
+    channel_id = str(channel.id)
+    channel_title = getattr(channel, "title", "") or "Unknown channel"
+    channel_username = getattr(channel, "username", "") or ""
+
+    # # Insert the channel or update its title/username.
+    # upsert_channel(
+    #     channel_id=channel_id,
+    #     channel_title=channel_title,
+    #     channel_username=channel_username,
+    # )
+
+    # Pass the ID, not the complete Telethon channel object.
+    if not is_channel_enabled(channel_id):
         return
+
     await save_telegram_message(
         channel=channel,
         message=event.message,

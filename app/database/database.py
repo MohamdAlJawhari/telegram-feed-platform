@@ -41,6 +41,18 @@ def create_database():
         )
         """)
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS channels (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            channel_id TEXT NOT NULL UNIQUE,
+            channel_title TEXT NOT NULL,
+            channel_username TEXT,
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP
+        )
+        """)
+        
+
         if needs_migration:
             if "channel_id" in existing_columns:
                 channel_id_expression = """

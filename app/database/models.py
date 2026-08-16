@@ -1,7 +1,7 @@
 import sqlite3
 from app.database.database import get_connection
 
-
+# This file defines the database models and provides functions to interact with the SQLite database.
 def save_post(channel_id, channel_title, channel_username, message_id, text, message_type, media_path, date):
     conn = get_connection()
     cursor = conn.cursor()
@@ -86,6 +86,58 @@ def save_post(channel_id, channel_title, channel_username, message_id, text, mes
         conn.close()
 
 
+# Function to add a new channel to the database
+def upsert_channel(
+    channel_id,
+    channel_title,
+    channel_username,
+):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO channels (
+            channel_id,
+            channel_title,
+            channel_username
+        )
+        VALUES (?, ?, ?)
+
+        ON CONFLICT(channel_id)
+        DO UPDATE SET
+            channel_title = excluded.channel_title,
+            channel_username = excluded.channel_username;
+    """,
+    (
+        channel_id,
+        channel_title,
+        channel_username,
+    ))
+
+    conn.commit()
+    conn.close()
+
+# Function to check if a channel is enabled in the database
+def is_channel_enabled(channel_id):
+    """Check if a channel is enabled."""
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT 1
+        FROM channels
+        WHERE channel_id = ?
+          AND enabled = 1
+    """, (str(channel_id),))
+
+    row = cursor.fetchone()
+
+    conn.close()
+
+    return row is not None
+
+# get all posts from the database
 def get_all_posts():
     conn = get_connection()
 
@@ -111,6 +163,7 @@ def get_all_posts():
 
     return rows
 
+# get posts by channel username
 def get_posts_by_channel(channel_username, limit=20):
 
     conn = get_connection()
@@ -139,3 +192,57 @@ def get_posts_by_channel(channel_username, limit=20):
     conn.close()
 
     return rows
+
+# get all enabled channels from the database
+def get_enabled_channels():
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            channel_id,
+            channel_title,
+            channel_username
+        FROM channels
+        WHERE enabled = 1
+    """)
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return rows
+
+def set_channel_enabled(
+    channel_id: str,
+    enabled: bool,
+):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE channels
+        SET enabled = ?
+        WHERE channel_id = ?
+    """,
+    (
+        int(enabled),
+        channel_id,
+    ))
+
+    conn.commit()
+    conn.close()
+
+def delete_channel(channel_id: str):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        DELETE FROM channels
+        WHERE channel_id = ?
+    """, (channel_id,))
+
+    conn.commit()
+    conn.close()
