@@ -4,11 +4,14 @@
 
 <head>
     <title>{{ channel_username }}</title>
+    <link rel="stylesheet" href="/static/css/channel_posts.css">
 </head>
 
 <body>
+
+    <a href="/dashboard" class="back-link"> ← Back </a>
+
     <h1>
-        Channel:
         @{{ channel_username }}
     </h1>
 
@@ -16,19 +19,76 @@
 
     {% for post in posts %}
 
-    <div>
-        <h3>
-            {{ post["text"] or "(No text)" }}
-        </h3>
+    <div class="post-card">
+
+        <h2>
+
+            {% if post["message_type"] == "photo" %}
+            🖼 Photo
+
+            {% elif post["message_type"] == "video" %}
+            🎥 Video
+
+            {% elif post["message_type"] == "document" %}
+            📄 Document
+
+            {% else %}
+            📝 Text
+
+            {% endif %}
+
+        </h2>
+
         <p>
-            Type:
-            {{ post["message_type"] }}
-        </p>
-        <p>
-            {{ post["date"] }}
+
+            {{ post["text"] or "(No caption)" }}
+
         </p>
 
-        <hr>
+        {% if post["media_url"] %}
+
+        {% if post["message_type"] == "photo" %}
+
+        <img src="{{ post['media_url'] }}" alt="Telegram image" class="post-image">
+
+        {% endif %}
+
+        {% if post["message_type"] == "document" %}
+
+        <p>
+
+            <a href="{{ post['media_url'] }}" target="_blank">
+
+                📄 Download document
+
+            </a>
+
+        </p>
+
+        {% endif %}
+
+        {% if post["message_type"] == "video" %}
+
+        <video controls class="post-video">
+            <source src="{{ post['media_url'] }}">
+        </video>
+
+        {% endif %}
+
+
+        {% endif %}
+
+        <p>
+
+            {{ post["date"] }}
+
+        </p>
+
+        <a class="telegram-link" href="https://t.me/{{ post['channel_username'] }}/{{ post['message_id'] }}"
+            target="_blank">
+            🔗 Open Telegram
+
+        </a>
 
     </div>
 

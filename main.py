@@ -28,6 +28,12 @@ app.mount(
     name="media",
 )
 
+app.mount(
+    "/static",
+    StaticFiles(directory="app/dashboard/static"),
+    name="static",
+)
+
 @app.on_event("startup")
 async def startup_event():
     create_database()
