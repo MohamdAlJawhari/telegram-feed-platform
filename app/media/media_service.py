@@ -19,6 +19,8 @@ def build_local_media_path(relative_path: str) -> Path:
     """
     return MEDIA_ROOT / relative_path
 
+def build_local_media_url(media_path: str) -> str:
+    return f"/media/{media_path}"
 
 def build_public_media_url(relative_path: str) -> str:
     """

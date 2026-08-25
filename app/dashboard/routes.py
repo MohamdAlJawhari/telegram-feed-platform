@@ -3,7 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 
 from app.telegram.telegram_service import get_channel_information
-from app.media.media_service import build_public_media_url
+from app.media.media_service import build_public_media_url, build_local_media_url
 from app.database.models import (
     upsert_channel, 
     get_all_channels, 
@@ -97,7 +97,7 @@ def channel_posts(
     for post in posts:
 
         if post["media_path"]:
-            post["media_url"] = build_public_media_url(
+            post["media_url"] = build_local_media_url(
                 post["media_path"]
             )
             print(post["media_url"])
