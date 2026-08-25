@@ -10,7 +10,8 @@ from app.database.models import (
     set_channel_enabled, 
     delete_channel, 
     get_posts_by_channel_username, 
-    get_posts_by_channel_username
+    get_posts_by_channel_username,
+    get_dashboard_statistics
 )
 
 templates = Jinja2Templates(
@@ -27,13 +28,16 @@ def dashboard(
     error: int = 0,
 ):
     channels = get_all_channels()
+    statistics = get_dashboard_statistics()
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
         context={
+            "request": request,
             "channels": channels,
+            "statistics": statistics,
             "success": success,
-            "error": error, 
+            "error": error,
         }
     )
 

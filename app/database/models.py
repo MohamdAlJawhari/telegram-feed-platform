@@ -291,3 +291,35 @@ def delete_channel(channel_id: str):
 
     conn.commit()
     conn.close()
+
+def get_dashboard_statistics():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT COUNT(*) FROM channels")
+    channels = cursor.fetchone()[0]
+
+    cursor.execute("SELECT COUNT(*) FROM posts")
+    posts = cursor.fetchone()[0]
+
+    cursor.execute("""
+        SELECT message_type, COUNT(*)
+        FROM posts
+        GROUP BY message_type
+    """)
+
+    message_types = {
+        row[0]: row[1]
+        for row in cursor.fetchall()
+    }
+
+    conn.close()
+
+    return {
+        "channels": channels,
+        "posts": posts,
+        "photos": message_types.get("photo", 0),
+        "videos": message_types.get("video", 0),
+        "documents": message_types.get("document", 0),
+        "texts": message_types.get("text", 0),
+    }

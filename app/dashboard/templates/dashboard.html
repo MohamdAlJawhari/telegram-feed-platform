@@ -1,74 +1,169 @@
-<h1>Telegram Feed Platform</h1>
+<!DOCTYPE html>
 
-<form action="/dashboard/add-channel" method="post">
-    <input type="text" name="username" placeholder="Telegram username" />
-    <button>Add Channel</button>
-</form>
+<html>
 
-<hr>
+<head>
+    <title>{{ channel_username }}</title>
+    <link rel="stylesheet" href="/static/css/dashboard.css">
+</head>
 
-<table border="1">
-    <tr>
-        <!-- Header -->
-        <th>Enabled</th>
-        <th>Title</th>
-        <th>Username</th>
-        <th>Posts</th>
-        <th>RSS</th>
-        <th>API</th>
-        <th>Delete</th>
-    </tr>
+<body>
 
-    {% for channel in channels %}
+    <h1>Telegram Feed Platform</h1>
 
-    <tr>
-        <!-- One row -->
-        <td>
-            <form action='/dashboard/toggle/{{ channel["channel_id"] }}' method="post">
-                <input type="checkbox" name="enabled" onchange="this.form.submit()" {% if channel["enabled"] %}checked{%
-                    endif %}>
+    <div class="statistics">
+
+        <div class="stat-card">
+            <h2>{{ statistics["channels"] }}</h2>
+            <p>Channels</p>
+        </div>
+
+        <div class="stat-card">
+            <h2>{{ statistics["posts"] }}</h2>
+            <p>Posts</p>
+        </div>
+
+        <div class="stat-card">
+            <h2>{{ statistics["photos"] }}</h2>
+            <p>Photos</p>
+        </div>
+
+        <div class="stat-card">
+            <h2>{{ statistics["videos"] }}</h2>
+            <p>Videos</p>
+        </div>
+
+        <div class="stat-card">
+            <h2>{{ statistics["documents"] }}</h2>
+            <p>Documents</p>
+        </div>
+
+    </div>
+
+    <form action="/dashboard/add-channel" method="post">
+        <div class="toolbar">
+
+            <form action="/dashboard/add-channel" method="post">
+
+                <input type="text" name="username" placeholder="Telegram username">
+
+                <button>Add Channel</button>
+
             </form>
-        </td>
-        <td>
-            {{ channel["channel_title"] }}
-        </td>
-        <td>
-            @{{ channel["channel_username"] }}
-        </td>
-        <td>
-            <a href="/dashboard/channel/{{ channel['channel_username'] }}">
-                👁 View
-            </a>
-        </td>
-        <td>
-            <a href='/rss/{{ channel["channel_username"] }}'>
-                RSS
-            </a>
-        </td>
-        <td>
-            <a href="/posts">
-                API
-            </a>
-        </td>
-        <td>
-            <form action='/dashboard/delete/{{ channel["channel_id"] }}' method="post">
-                <button type="submit">
-                    🗑
-                </button>
-            </form>
-        </td>
-    </tr>
-    {% endfor %}
-</table>
 
-{% if success %}
-<p style="color:green;">
-    ✅ Channel added successfully.
-</p>
-{% endif %}
+            <input id="search" type="text" placeholder="🔍 Search channels..." onkeyup="searchChannels()">
 
-{% if error %}
-<p style="color:red;">
-    ❌ Telegram channel not found.
-</p>
-{% endif %}
+        </div>
+    </form>
+
+    <hr>
+
+    <div class="channels">
+
+        {% for channel in channels %}
+
+        <div class="channel-card" data-search="{{ channel['channel_title'] }} {{ channel['channel_username'] }}">
+
+            <h2>
+
+                {% if channel["enabled"] %}
+                🟢
+                {% else %}
+                🔴
+                {% endif %}
+
+                {{ channel["channel_title"] }}
+
+            </h2>
+
+            <p>
+
+                @{{ channel["channel_username"] }}
+
+            </p>
+
+            <div class="actions">
+
+                <a href="/dashboard/channel/{{ channel['channel_username'] }}">
+                    👁 View Posts
+                </a>
+
+                <a href="#"
+                    onclick="copy(window.location.origin + '/rss/{{ channel.channel_username }}'); return false;">
+                    📋 RSS
+                </a>
+
+                <a href="#"
+                    onclick="copy(window.location.origin + '/posts?channel={{ channel.channel_username }}'); return false;">
+                    📋 API
+                </a>
+
+            </div>
+
+            <div class="bottom-row">
+
+                <form action="/dashboard/toggle/{{ channel['channel_id'] }}" method="post">
+
+                    <input type="checkbox" name="enabled" onchange="this.form.submit()" {% if channel["enabled"]
+                        %}checked{% endif %}>
+
+                </form>
+
+                <form action="/dashboard/delete/{{ channel['channel_id'] }}" method="post">
+
+                    <button>
+                        🗑 Delete
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    {% if success %}
+    <p style="color:green;">
+        ✅ Channel added successfully.
+    </p>
+    {% endif %}
+
+    {% if error %}
+    <p style="color:red;">
+        ❌ Telegram channel not found.
+    </p>
+    {% endif %}
+
+
+
+    <script>
+        function searchChannels() {
+            let value =
+                document
+                    .getElementById("search")
+                    .value
+                    .toLowerCase();
+            let cards =
+                document.querySelectorAll(".channel-card");
+            cards.forEach(card => {
+                let text =
+                    card.dataset.search.toLowerCase();
+                if (text.includes(value))
+                    card.style.display = "block";
+                else
+                    card.style.display = "none";
+            });
+        }
+
+        function copy(text) {
+            navigator.clipboard.writeText(text);
+            alert("Copied!!");
+        }
+
+    </script>
+</body>
+
+</html>
