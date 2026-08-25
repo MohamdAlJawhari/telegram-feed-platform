@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+    <title>{{ channel_username }}</title>
+</head>
+
+<body>
+    <h1>
+        Channel:
+        @{{ channel_username }}
+    </h1>
+
+    <hr>
+
+    {% for post in posts %}
+
+    <div>
+        <h3>
+            {{ post["text"] or "(No text)" }}
+        </h3>
+        <p>
+            Type:
+            {{ post["message_type"] }}
+        </p>
+        <p>
+            {{ post["date"] }}
+        </p>
+
+        <hr>
+
+    </div>
+
+    {% endfor %}
+
+</body>
+
+</html>

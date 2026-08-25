@@ -13,6 +13,7 @@
         <th>Enabled</th>
         <th>Title</th>
         <th>Username</th>
+        <th>Posts</th>
         <th>RSS</th>
         <th>API</th>
         <th>Delete</th>
@@ -24,12 +25,8 @@
         <!-- One row -->
         <td>
             <form action='/dashboard/toggle/{{ channel["channel_id"] }}' method="post">
-                <input 
-                    type="checkbox" 
-                    name="enabled" 
-                    onchange="this.form.submit()" 
-                    {% if channel["enabled"] %}checked{% endif %}
-                >
+                <input type="checkbox" name="enabled" onchange="this.form.submit()" {% if channel["enabled"] %}checked{%
+                    endif %}>
             </form>
         </td>
         <td>
@@ -37,6 +34,11 @@
         </td>
         <td>
             @{{ channel["channel_username"] }}
+        </td>
+        <td>
+            <a href="/dashboard/channel/{{ channel['channel_username'] }}">
+                👁 View
+            </a>
         </td>
         <td>
             <a href='/rss/{{ channel["channel_username"] }}'>
@@ -49,7 +51,11 @@
             </a>
         </td>
         <td>
-            Delete
+            <form action='/dashboard/delete/{{ channel["channel_id"] }}' method="post">
+                <button type="submit">
+                    🗑
+                </button>
+            </form>
         </td>
     </tr>
     {% endfor %}

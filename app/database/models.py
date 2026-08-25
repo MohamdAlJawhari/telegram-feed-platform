@@ -193,6 +193,32 @@ def get_posts_by_channel(channel_username, limit=20):
 
     return rows
 
+def get_posts_by_channel_username(channel_username: str):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            channel_id,
+            channel_title,
+            channel_username,
+            message_id,
+            text,
+            message_type,
+            media_path,
+            date
+        FROM posts
+        WHERE channel_username = ?
+        ORDER BY message_id DESC
+    """, (channel_username,))
+
+    rows = cursor.fetchall()
+
+    conn.close()
+
+    return rows
+
 # get all enabled channels from the database
 def get_enabled_channels():
 

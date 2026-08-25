@@ -3,7 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 
 from app.telegram.telegram_service import get_channel_information
-from app.database.models import upsert_channel, get_all_channels, set_channel_enabled
+from app.database.models import upsert_channel, get_all_channels, set_channel_enabled, delete_channel, get_posts_by_channel_username
 
 templates = Jinja2Templates(
     directory="app/dashboard/templates"
@@ -71,4 +71,33 @@ def toggle_channel(
     return RedirectResponse(
         "/dashboard",
         status_code=303,
+    )
+
+@router.post("/dashboard/delete/{channel_id}")
+def delete_channel_from_dashboard(channel_id: str):
+
+    delete_channel(channel_id)
+
+    return RedirectResponse(
+        url="/dashboard",
+        status_code=303,
+    )
+
+@router.get("/dashboard/channel/{channel_username}")
+def channel_posts(
+    request: Request,
+    channel_username: str,
+):
+
+    posts = get_posts_by_channel_username(
+        channel_username
+    )
+
+    return templates.TemplateResponse(
+        request=request,
+        name="channel_posts.html",
+        context={
+            "posts": posts,
+            "channel_username": channel_username,
+        }
     )
