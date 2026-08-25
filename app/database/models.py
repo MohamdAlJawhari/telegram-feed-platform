@@ -323,3 +323,38 @@ def get_dashboard_statistics():
         "documents": message_types.get("document", 0),
         "texts": message_types.get("text", 0),
     }
+
+def get_channel_summaries():
+    """
+    Return the latest post for every channel.
+    """
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            c.channel_id,
+            c.channel_title,
+            c.channel_username,
+
+            (
+                SELECT text
+                FROM posts p
+                WHERE p.channel_id = c.channel_id
+                ORDER BY p.message_id DESC
+                LIMIT 1
+            ) AS latest_post
+
+        FROM channels c
+        ORDER BY c.channel_title
+    """)
+
+    rows = [
+        dict(row)
+        for row in cursor.fetchall()
+    ]
+
+    conn.close()
+
+    return rows

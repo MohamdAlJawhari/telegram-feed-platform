@@ -103,10 +103,15 @@
             <div class="bottom-row">
 
                 <form action="/dashboard/toggle/{{ channel['channel_id'] }}" method="post">
+                    <label class="switch">
 
-                    <input type="checkbox" name="enabled" onchange="this.form.submit()" {% if channel["enabled"]
-                        %}checked{% endif %}>
+                        <input type="checkbox" name="enabled" 
+                            aria-label="Channel enabled: {{ channel['channel_title'] }}"
+                            onchange="this.form.submit()" {% if channel["enabled"]
+                            %}checked{% endif %}>
 
+                        <span class="slider"></span>
+                    </label>
                 </form>
 
                 <form action="/dashboard/delete/{{ channel['channel_id'] }}" method="post">
@@ -119,6 +124,12 @@
 
             </div>
 
+            <hr>
+
+            <p><strong>Latest post</strong></p>
+            <p class="latest-post" id="latest-{{ channel['channel_username'] }}">
+                Loading...
+            </p>
         </div>
 
         {% endfor %}
@@ -158,11 +169,44 @@
             });
         }
 
-        function copy(text) {
-            navigator.clipboard.writeText(text);
-            alert("Copied!!");
+        async function copy(text) {
+            try {
+                await navigator.clipboard.writeText(text);
+                alert("Copied!");
+            } catch (error) {
+                console.error("Failed to copy:", error);
+                alert("Could not copy the link.");
+            }
         }
 
+        let latestPostsRefreshId = 0;
+
+        async function refreshLatestPosts() {
+            const refreshId = ++latestPostsRefreshId;
+            const response =
+                await fetch("/channel-summary");
+            const channels =
+                await response.json();
+            if (refreshId !== latestPostsRefreshId)
+                return;
+            channels.forEach(channel => {
+                const element =
+                    document.getElementById(
+                        "latest-" + channel.channel_username
+                    );
+                if (!element)
+                    return;
+                element.textContent =
+                    channel.latest_post || "(No posts yet)";
+            });
+        }
+
+        refreshLatestPosts();
+
+        setInterval(
+            refreshLatestPosts,
+            5000
+        );
     </script>
 </body>
 

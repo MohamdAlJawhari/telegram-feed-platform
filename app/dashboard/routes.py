@@ -11,7 +11,8 @@ from app.database.models import (
     delete_channel, 
     get_posts_by_channel_username, 
     get_posts_by_channel_username,
-    get_dashboard_statistics
+    get_dashboard_statistics,
+    get_channel_summaries
 )
 
 templates = Jinja2Templates(
@@ -116,3 +117,8 @@ def channel_posts(
             "posts": posts,
         },
     )   
+
+@router.get("/channel-summary")
+def channel_summary():
+
+    return get_channel_summaries()
