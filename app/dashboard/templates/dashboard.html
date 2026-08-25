@@ -1,89 +1,58 @@
 <h1>Telegram Feed Platform</h1>
 
 <form action="/dashboard/add-channel" method="post">
-
-<input
-    type="text"
-    name="username"
-    placeholder="Telegram username"
-/>
-
-<button>Add Channel</button>
-
+    <input type="text" name="username" placeholder="Telegram username" />
+    <button>Add Channel</button>
 </form>
 
 <hr>
 
 <table border="1">
+    <tr>
+        <!-- Header -->
+        <th>Enabled</th>
+        <th>Title</th>
+        <th>Username</th>
+        <th>RSS</th>
+        <th>API</th>
+        <th>Delete</th>
+    </tr>
 
-<tr>
+    {% for channel in channels %}
 
-<th>Enabled</th>
-
-<th>Title</th>
-
-<th>Username</th>
-
-<th>RSS</th>
-
-<th>API</th>
-
-<th>Delete</th>
-
-</tr>
-
-{% for channel in channels %}
-
-<tr>
-
-<td>
-
-{{ "✅" if channel[3] else "❌" }}
-
-</td>
-
-<td>
-
-{{ channel[1] }}
-
-</td>
-
-<td>
-
-@{{ channel[2] }}
-
-</td>
-
-<td>
-
-<a href="/rss/{{ channel[2] }}">
-
-RSS
-
-</a>
-
-</td>
-
-<td>
-
-<a href="/posts">
-
-API
-
-</a>
-
-</td>
-
-<td>
-
-Delete
-
-</td>
-
-</tr>
-
-{% endfor %}
-
+    <tr>
+        <!-- One row -->
+        <td>
+            <form action='/dashboard/toggle/{{ channel["channel_id"] }}' method="post">
+                <input 
+                    type="checkbox" 
+                    name="enabled" 
+                    onchange="this.form.submit()" 
+                    {% if channel["enabled"] %}checked{% endif %}
+                >
+            </form>
+        </td>
+        <td>
+            {{ channel["channel_title"] }}
+        </td>
+        <td>
+            @{{ channel["channel_username"] }}
+        </td>
+        <td>
+            <a href='/rss/{{ channel["channel_username"] }}'>
+                RSS
+            </a>
+        </td>
+        <td>
+            <a href="/posts">
+                API
+            </a>
+        </td>
+        <td>
+            Delete
+        </td>
+    </tr>
+    {% endfor %}
 </table>
 
 {% if success %}

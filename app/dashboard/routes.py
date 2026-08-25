@@ -3,7 +3,7 @@ from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
 
 from app.telegram.telegram_service import get_channel_information
-from app.database.models import upsert_channel, get_all_channels
+from app.database.models import upsert_channel, get_all_channels, set_channel_enabled
 
 templates = Jinja2Templates(
     directory="app/dashboard/templates"
@@ -55,5 +55,20 @@ async def add_channel_from_dashboard(
 
     return RedirectResponse(
         url="/dashboard?success=1",
+        status_code=303,
+    )
+
+@router.post("/dashboard/toggle/{channel_id}")
+def toggle_channel(
+    channel_id: str,
+    enabled: str = Form(None),
+):
+    set_channel_enabled(
+        channel_id=channel_id,
+        enabled=enabled is not None,
+    )
+
+    return RedirectResponse(
+        "/dashboard",
         status_code=303,
     )

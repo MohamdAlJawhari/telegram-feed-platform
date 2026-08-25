@@ -4,8 +4,9 @@ DATABASE_NAME = "telegram.db"
 
 
 def get_connection():
-    return sqlite3.connect(DATABASE_NAME)
-
+    conn = sqlite3.connect(DATABASE_NAME)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def create_database():
     conn = get_connection()
