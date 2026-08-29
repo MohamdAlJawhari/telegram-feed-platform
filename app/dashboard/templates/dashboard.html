@@ -98,6 +98,10 @@
                     📋 API
                 </a>
 
+                <a href="/dashboard/settings/{{ channel['channel_id'] }}">
+                    ⚙ Settings
+                </a>
+
             </div>
 
             <div class="bottom-row">
@@ -105,10 +109,9 @@
                 <form action="/dashboard/toggle/{{ channel['channel_id'] }}" method="post">
                     <label class="switch">
 
-                        <input type="checkbox" name="enabled" 
-                            aria-label="Channel enabled: {{ channel['channel_title'] }}"
-                            onchange="this.form.submit()" {% if channel["enabled"]
-                            %}checked{% endif %}>
+                        <input type="checkbox" name="enabled"
+                            aria-label="Channel enabled: {{ channel['channel_title'] }}" onchange="this.form.submit()"
+                            {% if channel["enabled"] %}checked{% endif %}>
 
                         <span class="slider"></span>
                     </label>

@@ -2,8 +2,8 @@ import mimetypes
 
 from app.media.media_service import build_public_media_url
 from feedgen.feed import FeedGenerator
-from app.database.models import get_posts_by_channel
-
+from app.database.models import get_posts_by_channel, get_channel_settings
+from app.processing.processor import process_text
 
 def generate_rss(channel_name):
 
@@ -36,10 +36,17 @@ def generate_rss(channel_name):
         media_path,
         date,
     ) in posts:
+        
         fe = fg.add_entry()
+        settings = get_channel_settings(channel_id)
+
+        processed_text = process_text(
+            text=text or "",
+            settings=settings,
+        )
 
         # ---------- Title ----------
-        title = (text or "(No text)").strip()
+        title = (processed_text or "(No text)").strip()
 
         if len(title) > 80:
             title = title[:80] + "..."
@@ -47,7 +54,7 @@ def generate_rss(channel_name):
         fe.title(title)
 
         # ---------- Description ----------
-        fe.description(text or "")
+        fe.description(processed_text)
 
         # ---------- GUID ----------
         fe.guid(

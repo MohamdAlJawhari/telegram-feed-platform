@@ -114,6 +114,16 @@ def upsert_channel(
         channel_username,
     ))
 
+    cursor.execute("""
+        INSERT OR IGNORE INTO channel_settings(
+            channel_id
+        )
+        VALUES (?)
+    """,
+    (
+        channel_id,
+    ))
+
     conn.commit()
     conn.close()
 
@@ -358,3 +368,62 @@ def get_channel_summaries():
     conn.close()
 
     return rows
+
+def get_channel_settings(channel_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            prefix,
+            suffix,
+            remove_keywords,
+            replace_words
+        FROM channel_settings
+        WHERE channel_id = ?
+    """, (channel_id,))
+
+    row = cursor.fetchone()
+
+    conn.close()
+
+    if row is None:
+        return {
+            "prefix": "",
+            "suffix": "",
+            "remove_keywords": "",
+            "replace_words": "",
+        }
+
+    return dict(row)
+
+def update_channel_settings(
+    channel_id,
+    prefix,
+    suffix,
+    remove_keywords,
+    replace_words,
+):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        UPDATE channel_settings
+        SET
+            prefix = ?,
+            suffix = ?,
+            remove_keywords = ?,
+            replace_words = ?
+        WHERE channel_id = ?
+    """,
+    (
+        prefix,
+        suffix,
+        remove_keywords,
+        replace_words,
+        channel_id,
+    ))
+
+    conn.commit()
+    conn.close()

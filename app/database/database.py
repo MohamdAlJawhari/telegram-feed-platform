@@ -53,6 +53,18 @@ def create_database():
         )
         """)
         
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS channel_settings (
+                channel_id TEXT PRIMARY KEY,
+                prefix TEXT DEFAULT '',
+                suffix TEXT DEFAULT '',
+                remove_keywords TEXT DEFAULT '',
+                replace_words TEXT DEFAULT '',
+                FOREIGN KEY(channel_id)
+                    REFERENCES channels(channel_id)
+                    ON DELETE CASCADE
+            )
+        """)
 
         if needs_migration:
             if "channel_id" in existing_columns:
