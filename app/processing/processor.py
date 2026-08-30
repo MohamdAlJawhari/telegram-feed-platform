@@ -1,3 +1,41 @@
+import re
+
+def split_rules(text: str) -> list[str]:
+    """
+    Split rules written either as comma-separated values
+    or one rule per line.
+    """
+
+    rules = []
+
+    for line in text.splitlines():
+
+        for item in line.split(","):
+
+            item = item.strip()
+
+            if item:
+                rules.append(item)
+
+    return rules
+
+def extract_title(text: str) -> str:
+    """
+    Return the first non-empty line of a Telegram message.
+    """
+
+    if not text:
+        return "(No text)"
+
+    for line in text.splitlines():
+
+        line = line.strip()
+
+        if line:
+            return line
+
+    return "(No text)"
+
 def process_text(
     text: str,
     settings: dict,
@@ -22,7 +60,7 @@ def process_text(
 
     if remove_keywords:
 
-        for keyword in remove_keywords.split(","):
+        for keyword in split_rules(remove_keywords):
 
             keyword = keyword.strip()
 
@@ -44,7 +82,7 @@ def process_text(
 
     if replace_words:
 
-        for rule in replace_words.split(","):
+        for rule in split_rules(replace_words):
 
             rule = rule.strip()
 
@@ -56,9 +94,13 @@ def process_text(
                 1,
             )
 
-            processed = processed.replace(
-                old.strip(),
-                new.strip(),
+            old = old.strip()
+            new = new.strip()
+
+            processed = re.sub(
+                rf"\b{re.escape(old)}\b",
+                new,
+                processed,
             )
 
     # -------------------------

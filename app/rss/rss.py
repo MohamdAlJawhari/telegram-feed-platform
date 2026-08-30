@@ -3,7 +3,7 @@ import mimetypes
 from app.media.media_service import build_public_media_url
 from feedgen.feed import FeedGenerator
 from app.database.models import get_posts_by_channel, get_channel_settings
-from app.processing.processor import process_text
+from app.processing.processor import process_text, extract_title
 
 def generate_rss(channel_name):
 
@@ -46,7 +46,7 @@ def generate_rss(channel_name):
         )
 
         # ---------- Title ----------
-        title = (processed_text or "(No text)").strip()
+        title = extract_title(text)
 
         if len(title) > 80:
             title = title[:80] + "..."

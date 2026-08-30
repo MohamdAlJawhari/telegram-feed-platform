@@ -427,3 +427,26 @@ def update_channel_settings(
 
     conn.commit()
     conn.close()
+
+def get_channel(channel_id):
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT
+            channel_id,
+            channel_title,
+            channel_username
+        FROM channels
+        WHERE channel_id = ?
+    """, (channel_id,))
+
+    row = cursor.fetchone()
+
+    conn.close()
+
+    if row is None:
+        return None
+
+    return dict(row)

@@ -3,34 +3,102 @@
 <html>
 
 <head>
-
     <title>Channel Settings</title>
-
+    <link rel="stylesheet" href="/static/css/channel-setting.css">
 </head>
 
 <body>
-    <a href="/dashboard" class="back-link"> ← Back </a>
 
+    <a class="back-link" href="/dashboard">
+        ← Back to Dashboard
+    </a>
 
     <h1>Channel Settings</h1>
 
-    <form action="/dashboard/settings/{{ channel_id }}" method="post">
+    <h3>
+        Settings for:
+    </h3>
 
-        <p>Prefix</p>
-        <textarea name="prefix" rows="3" cols="70">{{ settings["prefix"] }}</textarea>
-        <p>Suffix</p>
-        <textarea name="suffix" rows="3" cols="70">{{ settings["suffix"] }}</textarea>
-        <p>Remove keywords</p>
-        <textarea name="remove_keywords" rows="3" cols="70">{{ settings["remove_keywords"] }}</textarea>
-        <p>Replace words</p>
-        <textarea name="replace_words" rows="6" cols="70">{{ settings["replace_words"] }}</textarea>
-        <br><br>
+    <p>
 
-        <button type="submit">
-            Save Settings
-        </button>
+    <div class="channel-name">
+        @{{ channel["channel_username"] }}
+    </div>
+    </p>
 
-    </form>
+    <hr>
+    <div class="settings-card">
+        <form action="/dashboard/settings/{{ channel_id }}" method="post">
+
+            <label>Prefix</label>
+            <textarea name="prefix" rows="3" cols="70">{{ settings["prefix"] }}</textarea>
+            <label>Suffix</label>
+            <textarea name="suffix" rows="3" cols="70">{{ settings["suffix"] }}</textarea>
+            <label>Remove keywords</label>
+            <textarea name="remove_keywords" rows="3" cols="70">{{ settings["remove_keywords"] }}</textarea>
+            <label>Replace words</label>
+            <textarea name="replace_words" rows="6" cols="70">{{ settings["replace_words"] }}</textarea>
+            <br><br>
+
+            <button class="save-btn" type="submit">
+                Save Settings
+            </button>
+
+        </form>
+    </div>
+
+    <hr>
+
+    <div class="help-card">
+        <h2>Help</h2>
+        <h3>Remove keywords</h3>
+        <p>
+            You can write one keyword per line:
+        </p>
+        <pre>
+            BREAKING
+            Advertisement
+            Urgent
+        </pre>
+        <p>
+            or comma separated:
+        </p>
+        <pre>
+            BREAKING,Advertisement,Urgent
+        </pre>
+        <pre>Matching is case-sensitive.
+            BREAKING, Breaking and breaking are treated as different words.
+        </pre>
+        <hr>
+        <h3>Replace words</h3>
+        <p>
+            Write each rule as:
+        </p>
+        <pre>old=>new</pre>
+        <p>
+            Example:
+        </p>
+        <pre>
+            Israel=>Occupation
+            USA=>United States
+            Breaking=>News
+        </pre>
+        <p>
+            Comma-separated rules also work:
+        </p>
+        <pre>Israel=>Occupation,USA=>United States</pre>
+        <pre>Replacement is case-sensitive.
+            Israel and israel are treated as different words.
+        </pre>
+        <hr>
+        <h3>Processing order</h3>
+        <ol>
+            <li>Remove keywords</li>
+            <li>Replace words</li>
+            <li>Add prefix</li>
+            <li>Add suffix</li>
+        </ol>
+    </div>
 
 </body>
 

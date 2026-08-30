@@ -14,7 +14,8 @@ from app.database.models import (
     get_dashboard_statistics,
     get_channel_summaries,
     get_channel_settings,
-    update_channel_settings
+    update_channel_settings,
+    get_channel
 )
 
 templates = Jinja2Templates(
@@ -127,12 +128,14 @@ def channel_settings_page(
 ):
 
     settings = get_channel_settings(channel_id)
+    channel = get_channel(channel_id)
 
     return templates.TemplateResponse(
         request=request,
         name="channel_settings.html",
         context={
             "channel_id": channel_id,
+            "channel": channel,
             "settings": settings,
         },
     )
