@@ -1,217 +1,148 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 
 <head>
-    <title>{{ channel_username }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Telegram Feed Platform</title>
     <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/dashboard.css">
 </head>
 
 <body>
+    <main class="dashboard-page">
+        <header class="dashboard-header">
+            <div>
+                <span class="eyebrow">Overview</span>
+                <h1>Telegram Feed Platform</h1>
+                <p>Manage your channels, feeds, and publishing settings.</p>
+            </div>
+            <div class="header-mark" aria-hidden="true">✈</div>
+        </header>
 
-    <h1>Telegram Feed Platform</h1>
+        <section class="statistics" aria-label="Feed statistics">
+            <article class="stat-card stat-channels">
+                <span class="stat-icon" aria-hidden="true">◉</span>
+                <div><strong>{{ statistics["channels"] }}</strong><span>Channels</span></div>
+            </article>
+            <article class="stat-card stat-posts">
+                <span class="stat-icon" aria-hidden="true">▤</span>
+                <div><strong>{{ statistics["posts"] }}</strong><span>Posts</span></div>
+            </article>
+            <article class="stat-card stat-photos">
+                <span class="stat-icon" aria-hidden="true">▧</span>
+                <div><strong>{{ statistics["photos"] }}</strong><span>Photos</span></div>
+            </article>
+            <article class="stat-card stat-videos">
+                <span class="stat-icon" aria-hidden="true">▶</span>
+                <div><strong>{{ statistics["videos"] }}</strong><span>Videos</span></div>
+            </article>
+            <article class="stat-card stat-documents">
+                <span class="stat-icon" aria-hidden="true">▱</span>
+                <div><strong>{{ statistics["documents"] }}</strong><span>Documents</span></div>
+            </article>
+        </section>
 
-    <div class="statistics">
-
-        <div class="stat-card">
-            <h2>{{ statistics["channels"] }}</h2>
-            <p>Channels</p>
-        </div>
-
-        <div class="stat-card">
-            <h2>{{ statistics["posts"] }}</h2>
-            <p>Posts</p>
-        </div>
-
-        <div class="stat-card">
-            <h2>{{ statistics["photos"] }}</h2>
-            <p>Photos</p>
-        </div>
-
-        <div class="stat-card">
-            <h2>{{ statistics["videos"] }}</h2>
-            <p>Videos</p>
-        </div>
-
-        <div class="stat-card">
-            <h2>{{ statistics["documents"] }}</h2>
-            <p>Documents</p>
-        </div>
-
-    </div>
-
-    <form action="/dashboard/add-channel" method="post">
-        <div class="toolbar">
-
-            <form action="/dashboard/add-channel" method="post">
-
-                <input type="text" name="username" placeholder="Telegram username">
-
-                <button>Add Channel</button>
-
+        <section class="channel-controls" aria-label="Channel controls">
+            <form class="add-channel-form" action="/dashboard/add-channel" method="post">
+                <label for="channel-username">Add a channel</label>
+                <div class="input-group">
+                    <span aria-hidden="true">@</span>
+                    <input id="channel-username" type="text" name="username" placeholder="Telegram username" required>
+                    <button type="submit"><span aria-hidden="true">＋</span> Add Channel</button>
+                </div>
             </form>
 
-            <input id="search" type="text" placeholder="🔍 Search channels..." onkeyup="searchChannels()">
+            <div class="search-group">
+                <label for="search">Search channels</label>
+                <div class="search-input">
+                    <span aria-hidden="true">⌕</span>
+                    <input id="search" type="search" placeholder="Search by name or username..." autocomplete="off">
+                </div>
+            </div>
+        </section>
 
-        </div>
-    </form>
+        {% if success %}
+        <div class="notice notice-success" role="status">✓ Channel added successfully.</div>
+        {% endif %}
+        {% if error %}
+        <div class="notice notice-error" role="alert">Channel could not be found. Check the username and try again.</div>
+        {% endif %}
 
-    <hr>
+        <section class="channel-section" aria-labelledby="channels-heading">
+            <div class="section-title">
+                <div>
+                    <h2 id="channels-heading">Your channels</h2>
+                    <p>View content, copy feed links, or update channel settings.</p>
+                </div>
+                <span class="channel-count">{{ statistics["channels"] }} total</span>
+            </div>
 
-    <div class="channels">
+            <div class="channels">
+                {% for channel in channels %}
+                <article class="channel-card" data-search="{{ channel['channel_title'] }} {{ channel['channel_username'] }}">
+                    <div class="channel-card-header">
+                        <div class="channel-identity">
+                            <span class="channel-avatar" aria-hidden="true">{{ channel["channel_title"][:1] | upper }}</span>
+                            <div>
+                                <h3>{{ channel["channel_title"] }}</h3>
+                                <p>@{{ channel["channel_username"] }}</p>
+                            </div>
+                        </div>
+                        <span class="status-badge {% if channel['enabled'] %}is-active{% else %}is-inactive{% endif %}">
+                            <span aria-hidden="true"></span>{% if channel["enabled"] %}Active{% else %}Paused{% endif %}
+                        </span>
+                    </div>
 
-        {% for channel in channels %}
+                    <div class="actions">
+                        <a class="action-primary" href="/dashboard/channel/{{ channel['channel_username'] }}">View Posts</a>
+                        <button class="action-secondary copy-button" type="button"
+                            data-copy-path="/rss/{{ channel.channel_username }}">Copy RSS</button>
+                        <button class="action-secondary copy-button" type="button"
+                            data-copy-path="/posts?channel={{ channel.channel_username }}">Copy API</button>
+                        <a class="action-secondary" href="/dashboard/settings/{{ channel['channel_id'] }}">Settings</a>
+                    </div>
 
-        <div class="channel-card" data-search="{{ channel['channel_title'] }} {{ channel['channel_username'] }}">
+                    <div class="latest-post-block">
+                        <div class="latest-post-heading"><strong>Latest post</strong><span>Auto-refreshes</span></div>
+                        <p class="latest-post" id="latest-{{ channel['channel_username'] }}">Loading latest post...</p>
+                    </div>
 
-            <h2>
-
-                {% if channel["enabled"] %}
-                🟢
+                    <div class="channel-card-footer">
+                        <form action="/dashboard/toggle/{{ channel['channel_id'] }}" method="post">
+                            <label class="toggle-control">
+                                <span>{% if channel["enabled"] %}Enabled{% else %}Disabled{% endif %}</span>
+                                <span class="switch">
+                                    <input type="checkbox" name="enabled"
+                                        aria-label="Channel enabled: {{ channel['channel_title'] }}"
+                                        onchange="this.form.submit()" {% if channel["enabled"] %}checked{% endif %}>
+                                    <span class="slider"></span>
+                                </span>
+                            </label>
+                        </form>
+                        <form action="/dashboard/delete/{{ channel['channel_id'] }}" method="post">
+                            <button class="delete-button" type="submit">Delete</button>
+                        </form>
+                    </div>
+                </article>
                 {% else %}
-                🔴
-                {% endif %}
-
-                {{ channel["channel_title"] }}
-
-            </h2>
-
-            <p>
-
-                @{{ channel["channel_username"] }}
-
-            </p>
-
-            <div class="actions">
-
-                <a href="/dashboard/channel/{{ channel['channel_username'] }}">
-                    👁 View Posts
-                </a>
-
-                <a href="#"
-                    onclick="copy(window.location.origin + '/rss/{{ channel.channel_username }}'); return false;">
-                    📋 RSS
-                </a>
-
-                <a href="#"
-                    onclick="copy(window.location.origin + '/posts?channel={{ channel.channel_username }}'); return false;">
-                    📋 API
-                </a>
-
-                <a href="/dashboard/settings/{{ channel['channel_id'] }}">
-                    ⚙ Settings
-                </a>
-
+                <div class="empty-state">
+                    <span aria-hidden="true">✈</span>
+                    <h3>No channels yet</h3>
+                    <p>Add a Telegram username above to create your first feed.</p>
+                </div>
+                {% endfor %}
             </div>
 
-            <div class="bottom-row">
-
-                <form action="/dashboard/toggle/{{ channel['channel_id'] }}" method="post">
-                    <label class="switch">
-
-                        <input type="checkbox" name="enabled"
-                            aria-label="Channel enabled: {{ channel['channel_title'] }}" onchange="this.form.submit()"
-                            {% if channel["enabled"] %}checked{% endif %}>
-
-                        <span class="slider"></span>
-                    </label>
-                </form>
-
-                <form action="/dashboard/delete/{{ channel['channel_id'] }}" method="post">
-
-                    <button>
-                        🗑 Delete
-                    </button>
-
-                </form>
-
+            <div id="no-search-results" class="empty-state" hidden>
+                <span aria-hidden="true">⌕</span>
+                <h3>No matching channels</h3>
+                <p>Try searching with a different name or username.</p>
             </div>
+        </section>
+    </main>
 
-            <hr>
-
-            <p><strong>Latest post</strong></p>
-            <p class="latest-post" id="latest-{{ channel['channel_username'] }}">
-                Loading...
-            </p>
-        </div>
-
-        {% endfor %}
-
-    </div>
-
-    {% if success %}
-    <p style="color:green;">
-        ✅ Channel added successfully.
-    </p>
-    {% endif %}
-
-    {% if error %}
-    <p style="color:red;">
-        ❌ Telegram channel not found.
-    </p>
-    {% endif %}
-
-
-
-    <script>
-        function searchChannels() {
-            let value =
-                document
-                    .getElementById("search")
-                    .value
-                    .toLowerCase();
-            let cards =
-                document.querySelectorAll(".channel-card");
-            cards.forEach(card => {
-                let text =
-                    card.dataset.search.toLowerCase();
-                if (text.includes(value))
-                    card.style.display = "block";
-                else
-                    card.style.display = "none";
-            });
-        }
-
-        async function copy(text) {
-            try {
-                await navigator.clipboard.writeText(text);
-                alert("Copied!");
-            } catch (error) {
-                console.error("Failed to copy:", error);
-                alert("Could not copy the link.");
-            }
-        }
-
-        let latestPostsRefreshId = 0;
-
-        async function refreshLatestPosts() {
-            const refreshId = ++latestPostsRefreshId;
-            const response =
-                await fetch("/channel-summary");
-            const channels =
-                await response.json();
-            if (refreshId !== latestPostsRefreshId)
-                return;
-            channels.forEach(channel => {
-                const element =
-                    document.getElementById(
-                        "latest-" + channel.channel_username
-                    );
-                if (!element)
-                    return;
-                element.textContent =
-                    channel.latest_post || "(No posts yet)";
-            });
-        }
-
-        refreshLatestPosts();
-
-        setInterval(
-            refreshLatestPosts,
-            5000
-        );
-    </script>
+    <div id="copy-toast" class="copy-toast" role="status" aria-live="polite"></div>
+    <script src="/static/js/dashboard.js"></script>
 </body>
-
 </html>

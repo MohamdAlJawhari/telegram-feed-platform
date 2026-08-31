@@ -1,106 +1,85 @@
 <!DOCTYPE html>
-
-<html>
-
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Channel Settings</title>
     <link rel="stylesheet" href="/static/css/common.css">
-    <link rel="stylesheet" href="/static/css/channel-setting.css">
+    <link rel="stylesheet" href="/static/css/channel_settings.css">
 </head>
-
 <body>
+    <main class="settings-page">
+        <a class="back-link" href="/dashboard"><span aria-hidden="true">←</span> Back to Dashboard</a>
+        <header class="page-header">
+            <h1>Channel Settings</h1>
+            <p>Settings for:</p>
+            <div class="channel-name">@{{ channel["channel_username"] }}</div>
+        </header>
 
-    <a class="back-link" href="/dashboard">
-        ← Back to Dashboard
-    </a>
+        <div class="settings-layout">
+            <form class="settings-form" action="/dashboard/settings/{{ channel_id }}" method="post">
+                <section class="settings-card text-settings" aria-label="Message text settings">
+                    <label for="prefix">Prefix</label>
+                    <textarea id="prefix" name="prefix" rows="2">{{ settings["prefix"] }}</textarea>
+                    <label for="suffix">Suffix</label>
+                    <textarea id="suffix" name="suffix" rows="2">{{ settings["suffix"] }}</textarea>
+                </section>
 
-    <h1>Channel Settings</h1>
+                <section class="settings-card rule-card" aria-labelledby="keywords-heading">
+                    <div class="section-heading">
+                        <h2 id="keywords-heading">Remove keywords</h2>
+                        <span class="info-icon" title="Matching is case-sensitive" aria-label="Matching is case-sensitive">i</span>
+                    </div>
+                    <textarea id="remove-keywords-data" name="remove_keywords" hidden>{{ settings["remove_keywords"] }}</textarea>
+                    <div class="keyword-entry">
+                        <input id="keyword-input" type="text" placeholder="Add a keyword" autocomplete="off">
+                        <button id="add-keyword" class="add-button" type="button"><span aria-hidden="true">＋</span> Add</button>
+                    </div>
+                    <div id="keyword-chips" class="keyword-chips" aria-live="polite"></div>
+                </section>
 
-    <h3>
-        Settings for:
-    </h3>
+                <section class="settings-card rule-card" aria-labelledby="replacements-heading">
+                    <div class="section-heading">
+                        <h2 id="replacements-heading">Replace words</h2>
+                        <span class="info-icon" title="Replacement is case-sensitive" aria-label="Replacement is case-sensitive">i</span>
+                    </div>
+                    <textarea id="replace-words-data" name="replace_words" hidden>{{ settings["replace_words"] }}</textarea>
+                    <div class="replacement-entry">
+                        <input id="old-word-input" type="text" placeholder="Enter word or phrase" autocomplete="off">
+                        <span class="entry-arrow" aria-hidden="true">→</span>
+                        <input id="new-word-input" type="text" placeholder="Replacement" autocomplete="off">
+                        <button id="add-replacement" class="add-button" type="button"><span aria-hidden="true">＋</span> Add</button>
+                    </div>
+                    <div id="replacement-list" class="replacement-list" aria-live="polite"></div>
+                </section>
 
-    <p>
+                <button class="save-button" type="submit"><span aria-hidden="true">💾</span> Save Settings</button>
+            </form>
 
-    <div class="channel-name">
-        @{{ channel["channel_username"] }}
-    </div>
-    </p>
+            <aside class="help-card" aria-labelledby="help-heading">
+                <h2 id="help-heading">Help</h2>
+                <section>
+                    <h3>Remove keywords</h3>
+                    <p>You can add one keyword at a time.</p>
+                    <p>Example:</p>
+                    <div class="example-tags"><code>BREAKING</code><code>Advertisement</code><code>Urgent</code></div>
+                    <p>Matching is case-sensitive.<br><code>BREAKING</code>, <code>Breaking</code> and <code>breaking</code> are treated as different words.</p>
+                </section>
+                <section>
+                    <h3>Replace words</h3>
+                    <p>Add rules to replace words or phrases.</p>
+                    <p>Example:</p>
+                    <div class="example-rules"><code>Israel =&gt; Occupation</code><code>USA =&gt; United States</code><code>Breaking =&gt; News</code></div>
+                    <p>Replacement is case-sensitive.<br><code>Israel</code> and <code>israel</code> are treated as different words.</p>
+                </section>
+                <section>
+                    <h3>Processing order</h3>
+                    <ol><li>Remove keywords</li><li>Replace words</li><li>Add prefix</li><li>Add suffix</li></ol>
+                </section>
+            </aside>
+        </div>
+    </main>
 
-    <hr>
-    <div class="settings-card">
-        <form action="/dashboard/settings/{{ channel_id }}" method="post">
-
-            <label>Prefix</label>
-            <textarea name="prefix" rows="3" cols="70">{{ settings["prefix"] }}</textarea>
-            <label>Suffix</label>
-            <textarea name="suffix" rows="3" cols="70">{{ settings["suffix"] }}</textarea>
-            <label>Remove keywords</label>
-            <textarea name="remove_keywords" rows="3" cols="70">{{ settings["remove_keywords"] }}</textarea>
-            <label>Replace words</label>
-            <textarea name="replace_words" rows="6" cols="70">{{ settings["replace_words"] }}</textarea>
-            <br><br>
-
-            <button class="save-btn" type="submit">
-                Save Settings
-            </button>
-
-        </form>
-    </div>
-
-    <hr>
-
-    <div class="help-card">
-        <h2>Help</h2>
-        <h3>Remove keywords</h3>
-        <p>
-            You can write one keyword per line:
-        </p>
-        <pre>
-            BREAKING
-            Advertisement
-            Urgent
-        </pre>
-        <p>
-            or comma separated:
-        </p>
-        <pre>
-            BREAKING,Advertisement,Urgent
-        </pre>
-        <pre>Matching is case-sensitive.
-            BREAKING, Breaking and breaking are treated as different words.
-        </pre>
-        <hr>
-        <h3>Replace words</h3>
-        <p>
-            Write each rule as:
-        </p>
-        <pre>old=>new</pre>
-        <p>
-            Example:
-        </p>
-        <pre>
-            Israel=>Occupation
-            USA=>United States
-            Breaking=>News
-        </pre>
-        <p>
-            Comma-separated rules also work:
-        </p>
-        <pre>Israel=>Occupation,USA=>United States</pre>
-        <pre>Replacement is case-sensitive.
-            Israel and israel are treated as different words.
-        </pre>
-        <hr>
-        <h3>Processing order</h3>
-        <ol>
-            <li>Remove keywords</li>
-            <li>Replace words</li>
-            <li>Add prefix</li>
-            <li>Add suffix</li>
-        </ol>
-    </div>
-
+    <script src="/static/js/channel_settings.js"></script>
 </body>
-
 </html>
