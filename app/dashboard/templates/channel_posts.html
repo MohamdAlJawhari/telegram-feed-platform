@@ -1,100 +1,88 @@
 <!DOCTYPE html>
-
-<html>
+<html lang="en">
 
 <head>
-    <title>{{ channel_username }}</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>@{{ channel_username }} · Posts</title>
     <link rel="stylesheet" href="/static/css/common.css">
     <link rel="stylesheet" href="/static/css/channel_posts.css">
 </head>
 
 <body>
+    <main class="posts-page">
+        <a href="/dashboard" class="back-link"><span aria-hidden="true">←</span> Back to Dashboard</a>
 
-    <a href="/dashboard" class="back-link"> ← Back </a>
+        <header class="posts-header">
+            <div class="channel-avatar" aria-hidden="true">{{ channel_username[:1] | upper }}</div>
+            <div>
+                <span class="eyebrow">Channel posts</span>
+                <h1>@{{ channel_username }}</h1>
+                <p>Browse the latest content collected from this Telegram channel.</p>
+            </div>
+            <span class="post-count">{{ posts | length }} {% if posts | length == 1 %}post{% else %}posts{% endif %}</span>
+        </header>
 
-    <h1>
-        @{{ channel_username }}
-    </h1>
+        <section class="posts-list" aria-label="Channel posts">
+            {% for post in posts %}
+            <article class="post-card">
+                <header class="post-header">
+                    <div class="post-type">
+                        <span class="post-type-icon" aria-hidden="true">
+                            {% if post["message_type"] == "photo" %}▧
+                            {% elif post["message_type"] == "video" %}▶
+                            {% elif post["message_type"] == "document" %}▱
+                            {% else %}≡{% endif %}
+                        </span>
+                        <div>
+                            <h2>
+                                {% if post["message_type"] == "photo" %}Photo
+                                {% elif post["message_type"] == "video" %}Video
+                                {% elif post["message_type"] == "document" %}Document
+                                {% else %}Text post{% endif %}
+                            </h2>
+                            <span>Message #{{ post["message_id"] }}</span>
+                        </div>
+                    </div>
+                    <time class="post-date" datetime="{{ post['date'] }}">{{ post["date"] }}</time>
+                </header>
 
-    <hr>
+                <div class="post-content" dir="auto">{{ post["text"] or "(No caption)" }}</div>
 
-    {% for post in posts %}
+                {% if post["media_url"] %}
+                <div class="post-media">
+                    {% if post["message_type"] == "photo" %}
+                    <a href="{{ post['media_url'] }}" target="_blank" rel="noopener" aria-label="Open full-size image">
+                        <img src="{{ post['media_url'] }}" alt="Image from Telegram post" class="post-image" loading="lazy">
+                    </a>
+                    {% elif post["message_type"] == "document" %}
+                    <a class="document-link" href="{{ post['media_url'] }}" target="_blank" rel="noopener">
+                        <span aria-hidden="true">↓</span>
+                        <span><strong>Download document</strong><small>Open the attached Telegram file</small></span>
+                    </a>
+                    {% elif post["message_type"] == "video" %}
+                    <video controls preload="metadata" class="post-video">
+                        <source src="{{ post['media_url'] }}">
+                        Your browser does not support embedded video.
+                    </video>
+                    {% endif %}
+                </div>
+                {% endif %}
 
-    <div class="post-card">
-
-        <h2>
-
-            {% if post["message_type"] == "photo" %}
-            📷 Photo
-
-            {% elif post["message_type"] == "video" %}
-            🎥 Video
-
-            {% elif post["message_type"] == "document" %}
-            📄 Document
-
+                <footer class="post-footer">
+                    <span>Telegram message</span>
+                    <a class="telegram-link" href="https://t.me/{{ post['channel_username'] }}/{{ post['message_id'] }}"
+                        target="_blank" rel="noopener">Open in Telegram <span aria-hidden="true">↗</span></a>
+                </footer>
+            </article>
             {% else %}
-            📝 Text
-
-            {% endif %}
-
-        </h2>
-
-        <p>
-
-            {{ post["text"] or "(No caption)" }}
-
-        </p>
-
-        {% if post["media_url"] %}
-
-        {% if post["message_type"] == "photo" %}
-
-        <img src="{{ post['media_url'] }}" alt="Telegram image" class="post-image">
-
-        {% endif %}
-
-        {% if post["message_type"] == "document" %}
-
-        <p>
-
-            <a href="{{ post['media_url'] }}" target="_blank">
-
-                📄 Download document
-
-            </a>
-
-        </p>
-
-        {% endif %}
-
-        {% if post["message_type"] == "video" %}
-
-        <video controls class="post-video">
-            <source src="{{ post['media_url'] }}">
-        </video>
-
-        {% endif %}
-
-
-        {% endif %}
-
-        <p>
-
-            {{ post["date"] }}
-
-        </p>
-
-        <a class="telegram-link" href="https://t.me/{{ post['channel_username'] }}/{{ post['message_id'] }}"
-            target="_blank">
-            🔗 Open Telegram
-
-        </a>
-
-    </div>
-
-    {% endfor %}
-
+            <div class="empty-state">
+                <span aria-hidden="true">≡</span>
+                <h2>No posts yet</h2>
+                <p>New posts will appear here after they are collected from Telegram.</p>
+            </div>
+            {% endfor %}
+        </section>
+    </main>
 </body>
-
 </html>
