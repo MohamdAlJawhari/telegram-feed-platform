@@ -10,7 +10,7 @@
 </head>
 
 <body>
-    <main class="posts-page">
+    <main class="posts-page" data-channel-username="{{ channel_username }}">
         <a href="/dashboard" class="back-link"><span aria-hidden="true">←</span> Back to Dashboard</a>
 
         <header class="posts-header">
@@ -22,6 +22,21 @@
             </div>
             <span class="post-count">{{ posts | length }} {% if posts | length == 1 %}post{% else %}posts{% endif %}</span>
         </header>
+
+        {% if posts %}
+        <div class="content-mode-bar">
+            <div>
+                <strong>Content view</strong>
+                <span id="content-mode-help">Showing the original message received from Telegram.</span>
+            </div>
+            <div class="content-mode-toggle" role="group" aria-label="Choose post content version">
+                <button class="content-mode-button is-selected" type="button" data-content-mode="original"
+                    aria-pressed="true">Original</button>
+                <button class="content-mode-button" type="button" data-content-mode="processed"
+                    aria-pressed="false">Processed</button>
+            </div>
+        </div>
+        {% endif %}
 
         <section class="posts-list" aria-label="Channel posts">
             {% for post in posts %}
@@ -47,7 +62,7 @@
                     <time class="post-date" datetime="{{ post['date'] }}">{{ post["date"] }}</time>
                 </header>
 
-                <div class="post-content" dir="auto">{{ post["text"] or "(No caption)" }}</div>
+                <div class="post-content" data-message-id="{{ post['message_id'] }}" dir="auto">{{ post["text"] or "(No caption)" }}</div>
 
                 {% if post["media_url"] %}
                 <div class="post-media">
@@ -84,5 +99,6 @@
             {% endfor %}
         </section>
     </main>
+    <script src="/static/js/channel_posts.js"></script>
 </body>
 </html>
