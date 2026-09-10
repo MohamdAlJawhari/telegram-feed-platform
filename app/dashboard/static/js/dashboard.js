@@ -27,9 +27,39 @@
     }
 
     async function copyLink(path) {
+        const text = window.location.origin + path;
+
         try {
-            await navigator.clipboard.writeText(window.location.origin + path);
+
+            // Modern Clipboard API
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(text);
+            }
+
+            // Fallback for HTTP / older browsers
+            else {
+                const textarea = document.createElement("textarea");
+
+                textarea.value = text;
+                textarea.style.position = "fixed";
+                textarea.style.left = "-9999px";
+
+                document.body.appendChild(textarea);
+
+                textarea.focus();
+                textarea.select();
+
+                const success = document.execCommand("copy");
+
+                document.body.removeChild(textarea);
+
+                if (!success) {
+                    throw new Error("Fallback copy failed");
+                }
+            }
+
             showToast("Link copied to clipboard");
+
         } catch (error) {
             console.error("Failed to copy link:", error);
             showToast("Could not copy the link");
