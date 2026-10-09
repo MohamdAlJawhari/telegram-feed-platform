@@ -6,3 +6,4 @@ sqlalchemy
 jinja2
 python-multipart
 feedgen
+httpx==0.28.1

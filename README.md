@@ -95,6 +95,151 @@ http://127.0.0.1:8000/docs
 
 The database and required local directories are created automatically at startup.
 
+## Ollama connection (implementation step 1)
+
+The reusable async client lives in `app/llm/ollama_client.py`. It supports any
+installed model; translation prompts, channel settings, and background workers
+will be added in later steps. Existing feeds do not depend on Ollama yet.
+
+Optional `.env` settings (these defaults work for a local Ollama installation):
+
+```dotenv
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_CONNECT_TIMEOUT=5
+OLLAMA_READ_TIMEOUT=180
+```
+
+Timeouts are seconds. The read timeout limits network inactivity, not the total
+duration of a task. The server must be reachable from the machine running Python.
+Environment proxy settings are ignored for this connection. No model is downloaded
+automatically, and errors are not retried automatically in this transport layer.
+
+Run these checks from the project root, without starting FastAPI or Telegram:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.llm.check_ollama
+.\.venv\Scripts\python.exe -m app.llm.check_ollama --model translategemma:latest
+.\.venv\Scripts\python.exe -m app.llm.check_ollama --model definitely-missing-model:latest
+.\.venv\Scripts\python.exe -m app.llm.check_ollama --base-url http://127.0.0.1:1
+```
+
+The first two print the connection and installed models. The third prints a
+missing-model error and a suggested pull command. The fourth prints a connection
+error without changing your configuration. Failed checks exit with status 1.
+You can also stop Ollama, repeat the first check, then reopen Ollama and retry.
+
+To test generation with TranslateGemma's documented prompt format:
+
+```powershell
+$prompt = "You are a professional English (en) to French (fr) translator. Your goal is to accurately convey the meaning and nuances of the original English text while adhering to French grammar, vocabulary, and cultural sensitivities. Produce only the French translation, without any additional explanations or commentary. Please translate the following English text into French:`n`n`nHello, how are you?"
+.\.venv\Scripts\python.exe -m app.llm.check_ollama --model translategemma:latest --prompt $prompt
+```
+
+Expect a French greeting. The first request may take longer while the model loads.
+This is a manual model check, not the channel translation feature.
+
+Other application services can reuse the client:
+
+```python
+from app.llm.ollama_client import OllamaClient
+
+async def ask_model(model, messages):
+    async with OllamaClient() as client:
+        return await client.chat(model, messages)
+```
+
+For multiple requests, reuse one client per application event loop and close it
+at shutdown. The client allows overlapping requests; actual parallel inference
+depends on Ollama settings and available memory. Persistent workers and concurrency
+limits belong to the later background-processing step.
+
+Client errors distinguish invalid configuration, connection failure, timeout,
+missing models, HTTP/API failure (with status code), and invalid responses.
+Task-specific checks such as empty translations belong to the translation service.
+
+## Translation service (implementation step 2)
+
+`app/translation/service.py` builds the TranslateGemma prompt and validates task
+output. It borrows an `OllamaClient`; it does not own the connection or change
+channel settings, RSS, the database, or Telegram collection yet.
+
+Optional `.env` settings:
+
+```dotenv
+TRANSLATION_MODEL=translategemma:latest
+TRANSLATION_MAX_CHUNK_BYTES=1600
+```
+
+Use explicit source and target language codes. The initial application allowlist
+contains 38 languages, including Arabic, Hebrew, English, French, and Persian.
+It is a subset of the [Ollama model's language list](https://ollama.com/library/translategemma),
+not a guarantee of equal translation quality. Automatic detection and regional
+variants are not included yet; `zh` aliases `zh-Hans`.
+
+From the project folder:
+
+```powershell
+# List language codes (does not contact Ollama).
+.\.venv\Scripts\python.exe -m app.translation.check_translation --languages
+
+# Basic translation: expect French, preserving the number 10.
+.\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target fr --text "The meeting starts at 10."
+
+# Test removal, replacement, and translation of both prefix and suffix.
+.\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target fr --text "BREAKING The event starts at 10." --remove-keywords BREAKING --replace-words "event=>meeting" --prefix "Latest news" --suffix "Source: Telegram" --show-processed
+
+# Same language: returns processed text without a request to Ollama.
+.\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target en --text "The meeting starts at 10." --base-url http://127.0.0.1:1
+
+# Each command should report a readable error and exit with status 1.
+.\.venv\Scripts\python.exe -m app.translation.check_translation --source auto --target en --text "News"
+.\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target fr --text "News" --model missing-test-model:latest
+.\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target fr --text "News" --base-url http://127.0.0.1:1
+```
+
+The processing order is **remove keywords → replace words → add prefix/suffix →
+translate**. `--show-processed` prints the text submitted for translation before
+the translated output. Write prefixes and suffixes in the selected source language
+for best results. No image or audio content is processed.
+
+For an Arabic sample or a long post, save a UTF-8 text file and run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.check_translation --source ar --target en --file .\sample-news.txt
+```
+
+For the empty-input check, pass a whitespace-only UTF-8 file. Expect
+`(No text to translate.)` without an Ollama request. The file reader accepts a UTF-8
+BOM and reports missing files or invalid encoding as readable errors.
+
+Long input is split into bounded UTF-8 chunks, preferring paragraph and word
+boundaries. To exercise chunking with a smaller sample, add `--chunk-bytes 64`.
+Boundaries retain their separators; line formatting within a chunk depends on
+the model. Very long unbroken tokens may be split across chunks. Smaller chunks
+can reduce context and translation quality. The first model load can take longer.
+
+Empty output, malformed responses, and an output-limit finish reason are errors.
+If any chunk fails, the service returns no partial translation. These checks cannot
+prove factual accuracy or detect every omission; review names, numbers, and meaning
+in representative news before enabling automatic publication.
+
+Calls can overlap using the same service/client; chunks for each call run in order.
+The service has no automatic retries, persistence, or concurrency limits yet.
+Those belong to the later background-worker stage. Connection and model errors
+retain their `OllamaError` types; language/configuration and output errors use
+`TranslationError` types.
+
+Reusable service example (caller owns the client lifecycle):
+
+```python
+from app.llm.ollama_client import OllamaClient
+from app.translation.service import TranslationService
+
+async def translate_news(text):
+    async with OllamaClient() as client:
+        return await TranslationService(client).translate(text, "ar", "en")
+```
+
 ## Dashboard workflow
 
 1. Enter a public Telegram channel username and select **Add Channel**.
