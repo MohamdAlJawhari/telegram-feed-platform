@@ -35,6 +35,11 @@ def save_post(channel_id, channel_title, channel_username, message_id, text, mes
                 message_id,
             ))
             if cursor.rowcount:
+                cursor.execute("""
+                    INSERT INTO translation_requests(post_id)
+                    SELECT id FROM posts WHERE channel_id = ? AND message_id = ?
+                    ON CONFLICT(post_id) DO UPDATE SET revision = revision + 1
+                """, (channel_id, message_id))
                 conn.commit()
                 print(f"✅ Legacy post reconciled ({channel_id} / {message_id})")
                 return True
@@ -63,6 +68,7 @@ def save_post(channel_id, channel_title, channel_username, message_id, text, mes
             str(date)
         ))
 
+        cursor.execute("INSERT INTO translation_requests(post_id) VALUES (?)", (cursor.lastrowid,))
         conn.commit()
         print("✅ Post saved.")
         return True
@@ -433,6 +439,16 @@ def update_channel_settings(
             channel_id, prefix, suffix, remove_keywords, replace_words,
             int(translation_enabled), source_language, target_language,
         ))
+        # Commit the settings and durable queue intent together, without Ollama I/O.
+        conn.execute("""
+            INSERT INTO translation_requests(post_id)
+            SELECT id FROM posts WHERE channel_id = ? OR (
+                channel_id IS NULL AND lower(channel_username) = (
+                    SELECT lower(channel_username) FROM channels WHERE channel_id = ?
+                )
+            )
+            ON CONFLICT(post_id) DO UPDATE SET revision = revision + 1
+        """, (channel_id, channel_id))
 
 def get_channel(channel_id):
 

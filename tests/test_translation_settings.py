@@ -41,7 +41,7 @@ class TranslationSettingsTest(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIn('id="translation-enabled"', response.text)
         self.assertIn('value="ar"', response.text)
-        self.assertIn("Automatic translation of posts", response.text)
+        self.assertIn("background translation", response.text)
         self.assertFalse(get_channel_settings("1")["translation_enabled"])
         self.assertEqual(self.client.get("/dashboard/settings/missing").status_code, 404)
 

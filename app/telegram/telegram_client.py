@@ -160,7 +160,10 @@ async def test_connection(
 async def start_telegram() -> None:
     """Keep listening for new Telegram messages."""
 
-    await client.start()
-    print("✅ Telegram connected.")
-    print("Waiting for new messages...")
-    await client.run_until_disconnected()
+    try:
+        await client.start()
+        print("✅ Telegram connected.")
+        print("Waiting for new messages...")
+        await client.run_until_disconnected()
+    finally:
+        await client.disconnect()

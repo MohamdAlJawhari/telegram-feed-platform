@@ -240,6 +240,61 @@ async def translate_news(text):
         return await TranslationService(client).translate(text, "ar", "en")
 ```
 
+## Saved translations and job storage (implementation step 4)
+
+Startup now creates `translation_jobs` and `post_translations` alongside the existing
+tables. Original Telegram posts remain unchanged. A job stores the original-input
+snapshot, processed body, settings, language pair, model name/digest, processing
+recipe version, and chunk size. Successful jobs save the translated body and final
+output separately, with the untranslated prefix/suffix added last.
+
+Jobs move through **pending → running → completed** or **failed**. Each running
+attempt has its own ownership token, so duplicate claims and callbacks from older
+attempts cannot complete a newer attempt. Database operations use short transactions;
+they do not hold a database lock while a model generates text.
+
+An identical request reuses its job and saved result. Changing original text, rules,
+prefix/suffix, languages, model identity, or recipe requires a fresh job. Reads and
+completion both check current post/channel settings before accepting output. Reverting
+to previously completed settings can reuse that exact result. Disabled translation,
+matching languages, empty bodies, and untracked channels have no current translation.
+
+Test the storage foundation without contacting Ollama:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.check_storage
+```
+
+Expect `pending -> running`, then `completed`, followed by PASS messages for cached
+reuse, changed settings, rejecting a stale attempt, failure storage, persistence,
+and preservation of the original post. This check uses a temporary database that
+is removed afterward; it does not modify your real channels, posts, or settings.
+
+Optionally use your installed Ollama model for the first saved result:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.check_storage --live
+```
+
+Expect a French news body with the English prefix/suffix unchanged. The remaining
+safety checks simulate settings changes and a failure. Your real database is still
+untouched. Run the automated checks with:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+The storage API lives in `app/translation/store.py`. Callers provide the current
+`TranslationConfig` and installed model digest (from `OllamaClient.require_model`)
+when queueing, claiming, reading, or completing a job. Refresh model identity before
+completion if an alias such as `latest` could have changed. Bump `RECIPE_VERSION`
+when prompts/options/processing behavior change to invalidate older outputs.
+
+Previews continue to use unsaved input and do not persist it. Step 5 adds automatic
+queueing, worker startup, and recovery of unfinished running jobs using this storage
+API. Reading saved results in feeds/dashboard belongs to Step 6. Failures are
+retained without automatic retry; retry controls follow in Step 7.
+
 ## Dashboard workflow
 
 ### Translation settings and preview (implementation step 3)
@@ -415,6 +470,69 @@ python -m unittest discover -s tests -v
 Tests use temporary directories and do not require the production SQLite database.
 
 ## Troubleshooting
+
+### Background translation workers (implementation step 5)
+
+When translation is enabled in a channel's saved settings, stored posts and new
+Telegram messages are queued automatically. Only message text and media captions
+are translated. The worker applies keyword removal, replacements, translation,
+then prefixes/suffixes. Original posts remain unchanged.
+
+The queue runs independently of Telegram and web requests. Its default limit is
+two concurrent jobs across channels, with preference for channels that have fewer
+jobs running. Configure the application in `.env`, then restart it:
+
+```dotenv
+TRANSLATION_CONCURRENCY=2
+TRANSLATION_POLL_SECONDS=2
+TRANSLATION_JOB_TIMEOUT=600
+```
+
+`TRANSLATION_CONCURRENCY` accepts 1–8. The job timeout covers all chunks and result
+validation; `OLLAMA_READ_TIMEOUT` still limits individual model requests. More
+concurrency requires more memory. The reusable Ollama client has no translation
+queue or scheduling logic.
+
+Ollama must also support parallel inference. On Windows, quit Ollama from the
+system tray, open **Edit environment variables for your account**, add the user
+variable `OLLAMA_NUM_PARALLEL` with value `2`, then reopen Ollama from the Start
+menu. This configures the Ollama server; adding it to this project's `.env` does
+not configure an already running server. See the
+[official Ollama FAQ](https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests).
+
+If Ollama cannot be reached or the configured model is missing, new requests stay
+in SQLite and are processed once Ollama is available. Generation failures are
+saved as `failed` without partial output; other jobs continue. Failed jobs are
+not automatically retried in this step; retry controls are planned for step 7.
+Pending jobs survive restart, and interrupted running jobs return to pending
+with fresh attempt tokens. A per-database OS file lock allows only one worker
+manager to recover jobs, including during application reloads. Other processes
+can still save posts/settings and queue requests. Leave the `.translation.lock`
+file in place; the OS releases ownership when its process exits.
+
+Run the offline worker check (simulated translation and an intentional connection
+failure), then the live check with Ollama open:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.check_workers
+.\.venv\Scripts\python.exe -m app.translation.check_workers --live
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+```
+
+Both worker checks use temporary databases and require no Telegram connection.
+Expect `PASS` messages and `Worker check passed`. The offline check verifies
+overlapping requests, the concurrency limit, restart recovery, stale callback
+rejection, cached-result reuse, and failure persistence. The live check translates
+two sample posts and saves both results; it verifies the application worker path,
+while actual server inference concurrency depends on Ollama's configuration and
+available memory.
+
+For an application check, restart the app, enable translation for two channels,
+and save their settings. Stored posts will be queued; new messages also queue as
+they arrive. Quit Ollama and receive another message, then reopen Ollama to verify
+that queued work resumes. Saved results can be inspected in `translation_jobs`
+and outstanding queue intents in `translation_requests` using a SQLite viewer.
+The dashboard and RSS use saved translated output starting in step 6.
 
 ### Missing Telegram credentials
 

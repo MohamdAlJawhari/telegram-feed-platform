@@ -105,6 +105,44 @@ def create_database():
             """)
             cursor.execute("DROP TABLE posts_legacy")
 
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS translation_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                post_id INTEGER NOT NULL,
+                fingerprint TEXT NOT NULL,
+                snapshot_json TEXT NOT NULL,
+                processed_text TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending'
+                    CHECK(status IN ('pending', 'running', 'completed', 'failed')),
+                translated_body TEXT,
+                output_text TEXT,
+                attempts INTEGER NOT NULL DEFAULT 0,
+                claim_token TEXT,
+                error_type TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                started_at TEXT,
+                completed_at TEXT,
+                UNIQUE(post_id, fingerprint),
+                FOREIGN KEY(post_id) REFERENCES posts(id)
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS post_translations (
+                post_id INTEGER PRIMARY KEY,
+                current_job_id INTEGER NOT NULL,
+                FOREIGN KEY(post_id) REFERENCES posts(id),
+                FOREIGN KEY(current_job_id) REFERENCES translation_jobs(id)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS translation_jobs_status_id ON translation_jobs(status, id)")
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS translation_requests (
+                post_id INTEGER PRIMARY KEY,
+                revision INTEGER NOT NULL DEFAULT 1
+            )
+        """)
         conn.commit()
     except Exception:
         conn.rollback()
