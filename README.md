@@ -185,7 +185,7 @@ From the project folder:
 # Basic translation: expect French, preserving the number 10.
 .\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target fr --text "The meeting starts at 10."
 
-# Test removal, replacement, and translation of both prefix and suffix.
+# Test body translation followed by an unchanged prefix and suffix.
 .\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target fr --text "BREAKING The event starts at 10." --remove-keywords BREAKING --replace-words "event=>meeting" --prefix "Latest news" --suffix "Source: Telegram" --show-processed
 
 # Same language: returns processed text without a request to Ollama.
@@ -197,10 +197,10 @@ From the project folder:
 .\.venv\Scripts\python.exe -m app.translation.check_translation --source en --target fr --text "News" --base-url http://127.0.0.1:1
 ```
 
-The processing order is **remove keywords → replace words → add prefix/suffix →
-translate**. `--show-processed` prints the text submitted for translation before
-the translated output. Write prefixes and suffixes in the selected source language
-for best results. No image or audio content is processed.
+The processing order is **remove keywords → replace words → translate → add
+prefix/suffix**. `--show-processed` prints the news body submitted for translation.
+Prefixes and suffixes stay in the language you wrote them; removal and replacement
+rules apply only to the body. No image or audio content is processed.
 
 For an Arabic sample or a long post, save a UTF-8 text file and run:
 
@@ -241,6 +241,43 @@ async def translate_news(text):
 ```
 
 ## Dashboard workflow
+
+### Translation settings and preview (implementation step 3)
+
+Restart the application after updating the code. Startup adds the translation
+settings columns to SQLite automatically while preserving existing channel rules.
+Translation defaults to off for existing and newly added channels.
+
+1. Open `/dashboard`, then **Settings** for an existing channel.
+2. Confirm the **Translation** section shows Ollama connected and your model available.
+3. Turn on **Enable translation**, then choose the source and target languages.
+4. Paste sample news into **Sample news text**. Enter a prefix/suffix in the language
+   you want readers to see and optionally add keyword/replacement rules using the existing Add buttons.
+5. Click **Preview translation** before saving. Compare the processed body with the
+   final output; only the news body should be translated, with the prefix/suffix added afterward.
+6. Change a setting and preview again. Reload without saving to confirm the preview
+   did not write settings. Then click **Save Settings** and reload to confirm persistence.
+7. Repeat with another channel to confirm its language settings are independent.
+8. Stop Ollama and click **Check connection** or **Preview translation**. Expect a
+   readable error with your inputs still present. Restart Ollama and retry.
+
+Additional checks: disabling translation or selecting the same language shows the
+processed body with prefix/suffix without contacting Ollama. An empty news body also
+skips translation and shows only any prefix/suffix supplied. Connection errors tell
+you to open Ollama and retry; missing-model errors tell you to add the selected model
+in Ollama. Technical diagnostic messages remain available through the CLI checks.
+No model is downloaded automatically.
+
+Previews use unsaved form values and never save posts or settings. Edits made during
+a preview invalidate its result rather than displaying stale output. Sample text is
+limited to 10,000 characters and each processing field to 4,000 for preview requests.
+The interactive preview has a total deadline equal to `OLLAMA_READ_TIMEOUT`, including
+all chunks. Failed requests re-enable the preview button so you can retry.
+
+This step saves preferences and provides interactive previews. Automatic translation
+of collected posts and RSS output still belongs to the later storage/worker/feed steps.
+
+### Managing channels
 
 1. Enter a public Telegram channel username and select **Add Channel**.
 2. Keep the channel enabled to collect newly received messages.

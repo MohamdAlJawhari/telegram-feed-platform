@@ -140,6 +140,22 @@ def process_text(
     return processed.strip()
 
 
+def process_body(text: str, settings: dict) -> str:
+    """Apply removal/replacement rules without adding a prefix or suffix."""
+    return process_text(text, {
+        "remove_keywords": settings.get("remove_keywords", ""),
+        "replace_words": settings.get("replace_words", ""),
+    })
+
+
+def add_affixes(text: str, settings: dict) -> str:
+    """Add prefix/suffix without applying body rules or translating them."""
+    return process_text(text, {
+        "prefix": settings.get("prefix", ""),
+        "suffix": settings.get("suffix", ""),
+    })
+
+
 if __name__ == "__main__":
 
     settings = {

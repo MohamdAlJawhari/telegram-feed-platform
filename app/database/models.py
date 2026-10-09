@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 from app.database.database import get_connection
 
 # This file defines the database models and provides functions to interact with the SQLite database.
@@ -378,7 +379,10 @@ def get_channel_settings(channel_id):
             prefix,
             suffix,
             remove_keywords,
-            replace_words
+            replace_words,
+            translation_enabled,
+            source_language,
+            target_language
         FROM channel_settings
         WHERE channel_id = ?
     """, (channel_id,))
@@ -393,6 +397,9 @@ def get_channel_settings(channel_id):
             "suffix": "",
             "remove_keywords": "",
             "replace_words": "",
+            "translation_enabled": False,
+            "source_language": "en",
+            "target_language": "fr",
         }
 
     return dict(row)
@@ -403,30 +410,29 @@ def update_channel_settings(
     suffix,
     remove_keywords,
     replace_words,
+    translation_enabled=False,
+    source_language="en",
+    target_language="fr",
 ):
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        UPDATE channel_settings
-        SET
-            prefix = ?,
-            suffix = ?,
-            remove_keywords = ?,
-            replace_words = ?
-        WHERE channel_id = ?
-    """,
-    (
-        prefix,
-        suffix,
-        remove_keywords,
-        replace_words,
-        channel_id,
-    ))
-
-    conn.commit()
-    conn.close()
+    with closing(get_connection()) as conn, conn:
+        conn.execute("""
+            INSERT INTO channel_settings (
+                channel_id, prefix, suffix, remove_keywords, replace_words,
+                translation_enabled, source_language, target_language
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(channel_id) DO UPDATE SET
+                prefix = excluded.prefix,
+                suffix = excluded.suffix,
+                remove_keywords = excluded.remove_keywords,
+                replace_words = excluded.replace_words,
+                translation_enabled = excluded.translation_enabled,
+                source_language = excluded.source_language,
+                target_language = excluded.target_language
+        """, (
+            channel_id, prefix, suffix, remove_keywords, replace_words,
+            int(translation_enabled), source_language, target_language,
+        ))
 
 def get_channel(channel_id):
 

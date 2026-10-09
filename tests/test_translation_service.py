@@ -145,11 +145,13 @@ class TranslationServiceTest(unittest.IsolatedAsyncioTestCase):
             results = await asyncio.gather(service.translate("First", "en", "fr"), service.translate("Second", "en", "ar"))
         self.assertEqual(results, ["français", "عربي"])
 
-    async def test_manual_pipeline_translates_prefix_and_suffix(self):
+    async def test_manual_pipeline_adds_untranslated_prefix_and_suffix(self):
         def handler(request):
             prompt = json.loads(request.content)["messages"][0]["content"]
-            self.assertTrue(prompt.endswith("\n\n\nLatest news\n\n Meeting today\n\nSource: Telegram"))
-            return reply("Dernières nouvelles\n\nRéunion aujourd’hui\n\nSource : Telegram")
+            self.assertTrue(prompt.endswith("\n\n\nMeeting today"))
+            self.assertNotIn("Latest news", prompt)
+            self.assertNotIn("Source: Telegram", prompt)
+            return reply("Réunion aujourd’hui")
         args = argparse.Namespace(
             model=None, chunk_bytes=None, base_url=None, remove_keywords="BREAKING",
             replace_words="Event=>Meeting", prefix="Latest news", suffix="Source: Telegram",
@@ -157,7 +159,7 @@ class TranslationServiceTest(unittest.IsolatedAsyncioTestCase):
         )
         with patch("app.translation.check_translation.OllamaClient", side_effect=lambda _: self.client(handler)), patch("app.translation.check_translation.TranslationConfig.from_env", return_value=TranslationConfig()), patch("app.translation.check_translation.OllamaConfig.from_env", return_value=OllamaConfig()):
             result = await run_check(args, "BREAKING Event today")
-        self.assertIn("Source : Telegram", result)
+        self.assertEqual(result, "Latest news\n\nRéunion aujourd’hui\n\nSource: Telegram")
 
     async def test_cancellation_propagates(self):
         async def handler(_):

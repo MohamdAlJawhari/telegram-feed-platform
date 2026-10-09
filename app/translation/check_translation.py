@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from app.llm.ollama_client import OllamaClient, OllamaConfig, OllamaError
-from app.processing.processor import process_text
+from app.processing.processor import process_body, add_affixes
 from app.translation.languages import LANGUAGES
 from app.translation.service import TranslationConfig, TranslationError, TranslationService
 
@@ -21,16 +21,18 @@ async def run_check(args, text):
     connection = OllamaConfig.from_env()
     if args.base_url:
         connection = OllamaConfig(args.base_url, connection.connect_timeout, connection.read_timeout)
-    processed = process_text(text, {
+    settings = {
         "remove_keywords": args.remove_keywords, "replace_words": args.replace_words,
         "prefix": args.prefix, "suffix": args.suffix,
-    })
+    }
+    processed = process_body(text, settings)
     if args.show_processed:
         print("Processed input:", file=sys.stderr)
         print(processed, file=sys.stderr)
     async with OllamaClient(connection) as client:
         service = TranslationService(client, config)
-        return await service.translate(processed, args.source, args.target)
+        translated = await service.translate(processed, args.source, args.target)
+        return add_affixes(translated, settings)
 
 
 def main():

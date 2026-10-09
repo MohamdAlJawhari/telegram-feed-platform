@@ -16,8 +16,13 @@
             <div class="channel-name">@{{ channel["channel_username"] }}</div>
         </header>
 
+        {% if error %}<p class="settings-notice error-notice" role="alert">{{ error }}</p>{% endif %}
+        {% if saved %}<p class="settings-notice success-notice" role="status">Settings saved.</p>{% endif %}
+
         <div class="settings-layout">
-            <form class="settings-form" action="/dashboard/settings/{{ channel_id }}" method="post">
+            <form id="channel-settings-form" class="settings-form" action="/dashboard/settings/{{ channel_id }}" method="post"
+                  data-preview-url="/dashboard/settings/{{ channel_id }}/translation-preview"
+                  data-status-url="/dashboard/settings/{{ channel_id }}/translation-status">
                 <section class="settings-card text-settings" aria-label="Message text settings">
                     <label for="prefix">Prefix</label>
                     <textarea id="prefix" name="prefix" rows="2">{{ settings["prefix"] }}</textarea>
@@ -53,6 +58,56 @@
                     <div id="replacement-list" class="replacement-list" aria-live="polite"></div>
                 </section>
 
+                <section class="settings-card translation-card" aria-labelledby="translation-heading">
+                    <h2 id="translation-heading">Translation</h2>
+                    <label class="translation-toggle" for="translation-enabled">
+                        <input id="translation-enabled" name="translation_enabled" type="checkbox" value="true"
+                               {% if settings.translation_enabled %}checked{% endif %}>
+                        Enable translation for this channel
+                    </label>
+                    <div class="language-pair">
+                        <div>
+                            <label for="source-language">Source language</label>
+                            <select id="source-language" name="source_language">
+                                {% if settings.source_language not in language_codes %}
+                                <option value="{{ settings.source_language }}" selected>Choose a supported language</option>
+                                {% endif %}
+                                {% for code, name in languages %}
+                                <option value="{{ code }}" {% if settings.source_language == code %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label for="target-language">Target language</label>
+                            <select id="target-language" name="target_language">
+                                {% if settings.target_language not in language_codes %}
+                                <option value="{{ settings.target_language }}" selected>Choose a supported language</option>
+                                {% endif %}
+                                {% for code, name in languages %}
+                                <option value="{{ code }}" {% if settings.target_language == code %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <p class="field-help">Prefixes and suffixes are added after translation and stay as written. Write them in the language you want readers to see.</p>
+                    <p class="field-help">Translation preview is available now. Automatic translation of posts and RSS feeds will be added in a later step.</p>
+                    <div class="connection-row">
+                        <p id="translation-connection-status" role="status" aria-live="polite">Checking Ollama…</p>
+                        <button id="check-translation-connection" class="add-button" type="button">Check connection</button>
+                    </div>
+                    <label for="translation-preview-text">Sample news text</label>
+                    <textarea id="translation-preview-text" rows="4" maxlength="10000" dir="auto"
+                              placeholder="Paste a news post to preview with the settings above."></textarea>
+                    <button id="preview-translation" type="button">Preview translation</button>
+                    <p id="translation-preview-status" role="status" aria-live="polite"></p>
+                    <div id="translation-preview-results" hidden>
+                        <h3>Body after keyword removal and replacement</h3>
+                        <pre id="translation-processed-output" dir="auto"></pre>
+                        <h3>Final output with prefix and suffix</h3>
+                        <pre id="translation-translated-output" dir="auto"></pre>
+                    </div>
+                </section>
+
                 <button class="save-button" type="submit"><span aria-hidden="true">💾</span> Save Settings</button>
             </form>
 
@@ -74,12 +129,18 @@
                 </section>
                 <section>
                     <h3>Processing order</h3>
-                    <ol><li>Remove keywords</li><li>Replace words</li><li>Add prefix</li><li>Add suffix</li></ol>
+                    <ol><li>Remove keywords</li><li>Replace words</li><li>Translate, when enabled</li><li>Add prefix and suffix</li></ol>
+                </section>
+                <section>
+                    <h3>Translation preview</h3>
+                    <p>Preview uses the current form values without saving them. Turn translation on and choose two different languages to translate.</p>
+                    <p>The first request may take longer while the model loads. If a preview fails, your entries stay in place.</p>
                 </section>
             </aside>
         </div>
     </main>
 
     <script src="/static/js/channel_settings.js"></script>
+    <script src="/static/js/translation_settings.js"></script>
 </body>
 </html>

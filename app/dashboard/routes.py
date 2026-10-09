@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Form
 from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
+from app.dashboard.settings import router as settings_router
 
 from app.telegram.telegram_service import get_channel_information
 from app.media.media_service import build_public_media_url, build_local_media_url
@@ -13,9 +14,6 @@ from app.database.models import (
     get_posts_by_channel_username,
     get_dashboard_statistics,
     get_channel_summaries,
-    get_channel_settings,
-    update_channel_settings,
-    get_channel
 )
 
 templates = Jinja2Templates(
@@ -23,6 +21,7 @@ templates = Jinja2Templates(
 )
 
 router = APIRouter()
+router.include_router(settings_router)
 
 
 @router.get("/dashboard")
@@ -119,50 +118,6 @@ def channel_posts(
             "channel_username": channel_username,
             "posts": posts,
         },
-    )
-
-@router.get("/dashboard/settings/{channel_id}")
-def channel_settings_page(
-    request: Request,
-    channel_id: str,
-):
-
-    settings = get_channel_settings(channel_id)
-    channel = get_channel(channel_id)
-
-    return templates.TemplateResponse(
-        request=request,
-        name="channel_settings.html",
-        context={
-            "channel_id": channel_id,
-            "channel": channel,
-            "settings": settings,
-        },
-    )
-
-@router.post("/dashboard/settings/{channel_id}")
-def save_channel_settings(
-
-    channel_id: str,
-
-    prefix: str = Form(""),
-    suffix: str = Form(""),
-    remove_keywords: str = Form(""),
-    replace_words: str = Form(""),
-
-):
-
-    update_channel_settings(
-        channel_id,
-        prefix,
-        suffix,
-        remove_keywords,
-        replace_words,
-    )
-
-    return RedirectResponse(
-        url=f"/dashboard/settings/{channel_id}",
-        status_code=303,
     )
 
 @router.get("/channel-summary")

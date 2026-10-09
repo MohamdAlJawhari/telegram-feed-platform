@@ -60,11 +60,24 @@ def create_database():
                 suffix TEXT DEFAULT '',
                 remove_keywords TEXT DEFAULT '',
                 replace_words TEXT DEFAULT '',
+                translation_enabled INTEGER NOT NULL DEFAULT 0,
+                source_language TEXT NOT NULL DEFAULT 'en',
+                target_language TEXT NOT NULL DEFAULT 'fr',
                 FOREIGN KEY(channel_id)
                     REFERENCES channels(channel_id)
                     ON DELETE CASCADE
             )
         """)
+
+        settings_columns = {row[1] for row in cursor.execute("PRAGMA table_info(channel_settings)")}
+        # Additive, repeatable migration: preserve all existing channel rules.
+        for name, definition in (
+            ("translation_enabled", "INTEGER NOT NULL DEFAULT 0"),
+            ("source_language", "TEXT NOT NULL DEFAULT 'en'"),
+            ("target_language", "TEXT NOT NULL DEFAULT 'fr'"),
+        ):
+            if name not in settings_columns:
+                cursor.execute(f"ALTER TABLE channel_settings ADD COLUMN {name} {definition}")
 
         if needs_migration:
             if "channel_id" in existing_columns:
