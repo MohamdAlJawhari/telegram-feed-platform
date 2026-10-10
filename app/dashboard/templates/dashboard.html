@@ -66,12 +66,12 @@
                  data-activity-url="/dashboard/translation-activity">
             <div>
                 <h2 id="translation-activity-heading">Background translation</h2>
-                <p>Concurrency adjusts automatically to your active channels and available memory.</p>
+                <p>Follow translation progress across your channels. RSS remains available while translations are prepared.</p>
             </div>
             <p id="translation-activity-status" role="status" aria-live="polite">Checking translation activity…</p>
             <p id="translation-memory-note" class="translation-memory-note"></p>
-            <p>Local Ollama starts automatically when needed. If it cannot start or the required model
-               is missing, RSS continues using source text and a warning appears here.</p>
+            <p>The translation service is managed automatically. If it is unavailable,
+               RSS continues in the original language and a warning appears here.</p>
         </section>
 
         {% if success %}
@@ -86,6 +86,7 @@
                 <div>
                     <h2 id="channels-heading">Your channels</h2>
                     <p>View content, copy feed links, or update channel settings.</p>
+                    <a href="/dashboard/demo/posts">Explore the demo channel <span aria-hidden="true">↗</span></a>
                 </div>
                 <span class="channel-count">{{ statistics["channels"] }} total</span>
             </div>

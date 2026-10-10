@@ -1,3 +1,4 @@
+{% from "post_icons.html" import icon, symbols %}
 <!DOCTYPE html>
 <html lang="en">
 
@@ -10,75 +11,91 @@
 </head>
 
 <body>
-    <main class="posts-page" data-channel-username="{{ channel_username }}"
-          data-output-url="{{ request.url_for('channel_output', channel_username=channel_username).path }}">
+    {{ symbols() }}
+    <main class="posts-page" data-channel-username="{{ channel_username }}" data-demo="{{ 'true' if demo else 'false' }}"
+          data-output-url="{{ '' if demo else request.url_for('channel_output', channel_username=channel_username).path }}">
         <a href="/dashboard" class="back-link"><span aria-hidden="true">←</span> Back to Dashboard</a>
 
         <header class="posts-header">
             <div class="channel-avatar" aria-hidden="true">{{ channel_username[:1] | upper }}</div>
             <div>
-                <span class="eyebrow">Channel posts</span>
-                <h1>@{{ channel_username }}</h1>
-                <p>Browse the latest content collected from this Telegram channel.</p>
+                <span class="eyebrow">Channel posts{% if demo %} · Demo channel{% endif %}</span>
+                <h1>{{ 'Demo News' if demo else '@' ~ channel_username }}</h1>
+                <p>{{ 'Explore sample posts and every translation status. These examples are not published.' if demo else 'Your news, with a clear view of what reaches RSS.' }}</p>
             </div>
             <span class="post-count">{{ posts | length }} {% if posts | length == 1 %}post{% else %}posts{% endif %}</span>
+        <div class="content-mode-bar">
+            {% if posts %}
+            <div class="toolbar-control">
+                <strong>Content view</strong>
+                <div class="content-mode-toggle" role="group" aria-label="Choose post content version">
+                    <button class="content-mode-button is-selected" type="button" data-content-mode="original" aria-pressed="true">Original</button>
+                    <button class="content-mode-button" type="button" data-content-mode="processed" aria-pressed="false">RSS output</button>
+                </div>
+            </div>
+            <div class="toolbar-control">
+                <strong>Display style</strong>
+                <div class="content-mode-toggle" role="group" aria-label="Choose post display style">
+                    <button class="layout-button is-selected" type="button" data-layout="stacked" aria-pressed="true">{{ icon('stacked') }} Stacked</button>
+                    <button class="layout-button" type="button" data-layout="cards" aria-pressed="false">{{ icon('cards') }} Cards</button>
+                </div>
+            </div>
+            <span id="content-mode-help">Showing the original message received from Telegram.</span>
+            {% endif %}
+            <button id="status-guide-trigger" type="button" aria-haspopup="dialog" aria-controls="status-guide" aria-expanded="false">{{ icon('help') }} Status guide</button>
+        </div>
         </header>
 
-        {% if posts %}
-        <div class="content-mode-bar">
-            <div>
-                <strong>Content view</strong>
-                <span id="content-mode-help">Showing the original message received from Telegram.</span>
-            </div>
-            <div class="content-mode-toggle" role="group" aria-label="Choose post content version">
-                <button class="content-mode-button is-selected" type="button" data-content-mode="original"
-                    aria-pressed="true">Original</button>
-                <button class="content-mode-button" type="button" data-content-mode="processed"
-                    aria-pressed="false">RSS output</button>
-            </div>
-        </div>
-        {% endif %}
+        <dialog id="status-guide" class="status-guide" aria-labelledby="status-guide-title" aria-describedby="status-guide-description">
+            <header class="guide-header"><h2 id="status-guide-title">Post status guide</h2><button type="button" id="status-guide-close" aria-label="Close status guide" autofocus>{{ icon('close') }}</button></header>
+            <p id="status-guide-description">Statuses describe the RSS version, even when you are viewing the original message.</p>
+            <dl tabindex="0" aria-label="English and Arabic status definitions">
+                {% for label, definition in status_guide %}
+                {% set appearance = status_appearance[label] %}
+                <div class="guide-entry" data-tone="{{ appearance[0] }}">
+                    <dt>{{ icon(appearance[1], 'guide-icon ui-icon') }}<span>{{ label }}</span><span lang="ar" dir="rtl">{{ appearance[2] }}</span></dt>
+                    <dd><p>{{ definition }}</p><p lang="ar" dir="rtl">{{ appearance[3] }}</p></dd>
+                </div>
+                {% endfor %}
+            </dl>
+            <p class="guide-note">RSS never waits for translation. If it publishes a post in its original language, that version stays final.</p>
+        </dialog>
 
-        <section class="posts-list" aria-label="Channel posts">
+        <section class="posts-list" data-layout="stacked" aria-label="Channel posts">
             {% for post in posts %}
             <article class="post-card" data-post-id="{{ post['id'] }}">
                 <header class="post-header">
-                    <div class="post-type">
-                        <span class="post-type-icon" aria-hidden="true">
-                            {% if post["message_type"] == "photo" %}▧
-                            {% elif post["message_type"] == "video" %}▶
-                            {% elif post["message_type"] == "document" %}▱
-                            {% else %}≡{% endif %}
-                        </span>
-                        <div>
-                            <h2>
-                                {% if post["message_type"] == "photo" %}Photo
-                                {% elif post["message_type"] == "video" %}Video
-                                {% elif post["message_type"] == "document" %}Document
-                                {% else %}Text post{% endif %}
-                            </h2>
-                            <span>Message #{{ post["message_id"] }}</span>
+                    <span class="post-type-icon" aria-hidden="true">{{ icon(post['message_type'] if post['message_type'] in ['photo', 'video'] else 'text') }}</span>
+                    <div class="post-heading">
+                        <h2>{% if post['message_type'] == 'photo' %}Photo{% elif post['message_type'] == 'video' %}Video{% elif post['message_type'] == 'document' %}Document{% else %}Text post{% endif %}</h2>
+                        <div class="post-metadata">
+                            <span>Message #{{ post['message_id'] }}</span>
+                            <time class="post-date" datetime="{{ post['date'] }}">{{ post['date'] }}</time>
+                            {% set appearance = status_appearance[post['translation_label'].split(' · ')[0]] %}
+                            <details class="translation-status" data-status="{{ post['translation_status'] }}" data-tone="{{ post['translation_tone'] }}">
+                                <summary class="translation-badge" aria-label="{{ post['translation_label'] }}: show status details">
+                                    {{ icon(appearance[1], 'translation-icon ui-icon') }}<span class="translation-label">{{ post['translation_label'] }}</span>
+                                </summary>
+                                <p class="translation-message">{{ post['translation_message'] }}</p>
+                            </details>
                         </div>
                     </div>
-                    <time class="post-date" datetime="{{ post['date'] }}">{{ post["date"] }}</time>
                 </header>
-
-                <div class="translation-status" data-status="{{ post['translation_status'] }}">
-                    <strong class="translation-label">{{ post['translation_label'] }}</strong>
-                    <span class="translation-message">{{ post['translation_message'] }}</span>
-                </div>
+                {% if demo %}<p class="demo-case">{{ post['demo_title'] }}</p>{% endif %}
                 <div class="post-content post-original" dir="auto">{{ post["text"] or "(No caption)" }}</div>
                 <div class="post-content post-published" dir="auto" hidden>{{ post["output_text"] or "(No text)" }}</div>
 
-                {% if post["media_url"] %}
+                {% if demo and post['demo_video'] %}
+                <div class="post-media"><div class="demo-video-preview"><span aria-hidden="true">▶</span><strong>Sample video</strong><small>Video content is kept in its original form.</small></div></div>
+                {% elif post["media_url"] %}
                 <div class="post-media">
                     {% if post["message_type"] == "photo" %}
                     <a href="{{ post['media_url'] }}" target="_blank" rel="noopener" aria-label="Open full-size image">
-                        <img src="{{ post['media_url'] }}" alt="Image from Telegram post" class="post-image" loading="lazy">
+                        <img src="{{ post['media_url'] }}" alt="{{ 'Sample city illustration' if demo else 'Image from Telegram post' }}" class="post-image" loading="lazy">
                     </a>
                     {% elif post["message_type"] == "document" %}
                     <a class="document-link" href="{{ post['media_url'] }}" target="_blank" rel="noopener">
-                        <span aria-hidden="true">↓</span>
+                        <span>{{ icon('download') }}</span>
                         <span><strong>Download document</strong><small>Open the attached Telegram file</small></span>
                     </a>
                     {% elif post["message_type"] == "video" %}
@@ -91,9 +108,11 @@
                 {% endif %}
 
                 <footer class="post-footer">
-                    <span>Telegram message</span>
+                    <span class="rss-label">{{ post['rss_label'] }}</span>
+                    {% if demo %}<span>Demo example</span>{% else %}
                     <a class="telegram-link" href="https://t.me/{{ post['channel_username'] }}/{{ post['message_id'] }}"
                         target="_blank" rel="noopener">Open in Telegram <span aria-hidden="true">↗</span></a>
+                    {% endif %}
                 </footer>
             </article>
             {% else %}
@@ -105,12 +124,14 @@
             {% endfor %}
         </section>
         <p id="post-output-refresh-status" role="status" aria-live="polite"></p>
+        {% if not demo %}
         <section class="translation-activity" data-activity-url="/dashboard/translation-activity"
-                 aria-label="Background translation across all channels">
-            <strong>Background translation across all channels</strong>
-            <p id="translation-activity-status" role="status" aria-live="polite">Checking translation activity…</p>
+                 aria-label="Translation service across all channels">
+            <strong>Translation service</strong>
+            <p id="translation-activity-status" role="status" aria-live="polite">Checking the translation service…</p>
             <p id="translation-memory-note"></p>
         </section>
+        {% endif %}
     </main>
     <script src="/static/js/channel_posts.js?v={{ asset_versions['js/channel_posts.js'] }}"></script>
     <script src="/static/js/translation_activity.js?v={{ asset_versions['js/translation_activity.js'] }}"></script>

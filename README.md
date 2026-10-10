@@ -644,6 +644,44 @@ post has not already been finalized as source by RSS. RSS remains immediate.
 Previously completed translations remain usable during an outage. Final source
 posts stay unchanged when settings change.
 
+### Post views and the demo channel
+
+The **Channel posts** header includes **Content view** (Original / RSS output) and
+**Display style** (Stacked / Cards). Stacked shows one post below another; Cards
+shows two columns on larger screens and one on phones. The display style is
+remembered in that browser across channels. Changing the layout does not change
+the selected text version, and live refreshes update text, badges and RSS labels
+together without switching views. Dates use the viewer's local time.
+
+Each post has a compact status badge beside its metadata and an RSS output label.
+Activate the badge to read its specific explanation. The **Status guide** help
+button opens a compact desktop dialog or mobile panel, closed by default, with
+all eleven definitions in English and Arabic (only Arabic text is RTL). Close
+it with its close button or Escape; focus returns to the help button. Statuses
+refer to the RSS version even while Original content is selected. Waiting,
+translating, paused and disabled are separate states; published source output and
+failed translations are clearly marked final. Post and service warnings do not
+ask ordinary users to manage Ollama, model downloads, memory or environment
+variables. They direct setup problems to an administrator.
+
+Choose **Explore the demo channel** in the dashboard or open
+`/dashboard/demo/posts`. The sample channel contains 23 fictional examples covering
+all status definitions, Arabic translations, source fallbacks, text rules and
+photo/video/document displays. It uses the same template, style controls and status
+presentation as real channels, but does not read/write the project database, call
+Ollama, poll live translation activity or publish sample posts to RSS. The sample
+video is a labelled visual placeholder; the image and document are local assets.
+
+To review the interface, restart the application and open the demo. Switch between
+Stacked and Cards, toggle Original / RSS output, open the status guide and review
+the examples. Resize to a phone width; cards become a single column. Reload the
+page to verify the layout preference persists. On a real channel, a new translation
+should update its message and badge without changing your current view.
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_post_presentation tests.test_translation_output -q
+```
+
 ### Ollama startup and readiness (implementation step 7)
 
 Local Ollama startup is automatic; there is no user switch. The dashboard's

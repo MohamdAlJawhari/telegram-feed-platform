@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="420" viewBox="0 0 800 420" role="img" aria-label="Illustration of a city at sunset">
+  <defs><linearGradient id="sky" x2="0" y2="1"><stop stop-color="#cfe5ff"/><stop offset="1" stop-color="#ffe5cd"/></linearGradient></defs>
+  <rect width="800" height="420" fill="url(#sky)"/>
+  <circle cx="618" cy="154" r="65" fill="#f5b57e"/>
+  <path d="M0 280 Q170 220 340 290 T800 250 V420 H0Z" fill="#9db4cf"/>
+  <g fill="#42678b"><rect x="85" y="180" width="82" height="170" rx="5"/><rect x="184" y="235" width="75" height="115" rx="5"/><rect x="282" y="128" width="104" height="222" rx="5"/><rect x="410" y="210" width="91" height="140" rx="5"/><rect x="528" y="245" width="110" height="105" rx="5"/></g>
+  <g fill="#f7d5a4"><path d="M108 208h15v20h-15zm30 0h15v20h-15zm-30 42h15v20h-15zm30 0h15v20h-15zM305 160h18v24h-18zm38 0h18v24h-18zm-38 46h18v24h-18zm38 0h18v24h-18zm-38 46h18v24h-18zm38 0h18v24h-18zM435 237h17v21h-17zm30 0h17v21h-17z"/></g>
+  <path d="M0 350H800V420H0Z" fill="#2b4766"/>
+  <text x="36" y="394" font-family="Arial,sans-serif" font-size="18" fill="#e4effa">Demo News · Sample illustration</text>
+</svg>
