@@ -1,15 +1,18 @@
+{% from "post_icons.html" import icon, symbols %}
 <!DOCTYPE html>
 <html lang="en">
 
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telegram Feed Platform</title>
-    <link rel="stylesheet" href="/static/css/common.css">
-    <link rel="stylesheet" href="/static/css/dashboard.css">
+    <link rel="stylesheet" href="/static/css/common.css?v={{ asset_versions['css/common.css'] }}">
+    <link rel="stylesheet" href="/static/css/dashboard.css?v={{ asset_versions['css/dashboard.css'] }}">
 </head>
 
 <body>
+    {{ symbols() }}
     <main class="dashboard-page">
         <header class="dashboard-header">
             <div>
@@ -17,7 +20,7 @@
                 <h1>Telegram Feed Platform</h1>
                 <p>Manage your channels, feeds, and publishing settings.</p>
             </div>
-            <div class="header-mark" aria-hidden="true">✈</div>
+            <div class="header-mark" aria-hidden="true"><img src="/static/favicon.svg" alt="" width="58" height="58"></div>
         </header>
 
         <section class="statistics" aria-label="Feed statistics">
@@ -29,22 +32,46 @@
                 <span class="stat-icon" aria-hidden="true">▤</span>
                 <div><strong>{{ statistics["posts"] }}</strong><span>Posts</span></div>
             </article>
-            <article class="stat-card stat-photos">
+            <article class="stat-card stat-media">
                 <span class="stat-icon" aria-hidden="true">▧</span>
-                <div><strong>{{ statistics["photos"] }}</strong><span>Photos</span></div>
+                <div><strong>{{ statistics["media"] }}</strong><span>Media</span></div>
             </article>
-            <article class="stat-card stat-videos">
-                <span class="stat-icon" aria-hidden="true">▶</span>
-                <div><strong>{{ statistics["videos"] }}</strong><span>Videos</span></div>
-            </article>
-            <article class="stat-card stat-documents">
-                <span class="stat-icon" aria-hidden="true">▱</span>
-                <div><strong>{{ statistics["documents"] }}</strong><span>Documents</span></div>
-            </article>
+            <button class="stat-card stat-translation" id="translation-channels-trigger" type="button"
+                    aria-haspopup="dialog" aria-controls="translation-channels-dialog" aria-expanded="false">
+                <span class="stat-icon" aria-hidden="true">⇄</span>
+                <span class="stat-content"><strong>{{ statistics["translation_channels"] }}</strong><span>Translation enabled</span></span>
+                {{ icon('chevron', 'stat-help-icon ui-icon') }}
+            </button>
         </section>
 
+        <dialog id="translation-channels-dialog" class="translation-channels-dialog" aria-labelledby="translation-channels-title" aria-describedby="translation-channels-description">
+            <header class="translation-dialog-header">
+                <div><span class="eyebrow">Translation enabled</span><h2 id="translation-channels-title">Channel translations</h2></div>
+                <button id="translation-channels-close" class="dialog-close" type="button" aria-label="Close channel translations" autofocus>{{ icon('close') }}</button>
+            </header>
+            <p id="translation-channels-description">{{ translation_channels | length }} {% if translation_channels | length == 1 %}channel has{% else %}channels have{% endif %} translation turned on. Paused channels keep their translation settings.</p>
+            <ul class="translation-channel-list">
+                {% for channel in translation_channels %}
+                <li>
+                    <div class="translation-channel-identity">
+                        <span class="channel-avatar" aria-hidden="true">{{ channel['channel_title'][:1] | upper }}</span>
+                        <div><h3 dir="auto">{{ channel['channel_title'] }}</h3><p>@{{ channel['channel_username'] }}</p></div>
+                        <span class="status-badge {{ 'is-active' if channel['enabled'] else 'is-inactive' }}">{{ 'Active' if channel['enabled'] else 'Paused' }}</span>
+                    </div>
+                    <p class="translation-language-pair">{{ language_names.get(channel['source_language'], channel['source_language']) }} {{ icon('arrow') }} {{ language_names.get(channel['target_language'], channel['target_language']) }}</p>
+                    <div class="translation-channel-links">
+                        <a href="/telegram-feed/channel/{{ channel['channel_username'] }}">View posts {{ icon('arrow') }}</a>
+                        <a href="/telegram-feed/settings/{{ channel['channel_id'] }}">{{ icon('gear') }} Settings</a>
+                    </div>
+                </li>
+                {% else %}
+                <li class="translation-channels-empty">No channels have translation enabled yet. Open a channel’s Settings to turn it on.</li>
+                {% endfor %}
+            </ul>
+        </dialog>
+
         <section class="channel-controls" aria-label="Channel controls">
-            <form class="add-channel-form" action="/dashboard/add-channel" method="post">
+            <form class="add-channel-form" action="/telegram-feed/add-channel" method="post">
                 <label for="channel-username">Add a channel</label>
                 <div class="input-group">
                     <span aria-hidden="true">@</span>
@@ -62,16 +89,15 @@
             </div>
         </section>
 
-        <section class="translation-activity" aria-labelledby="translation-activity-heading"
-                 data-activity-url="/dashboard/translation-activity">
-            <div>
-                <h2 id="translation-activity-heading">Background translation</h2>
-                <p>Follow translation progress across your channels. RSS remains available while translations are prepared.</p>
+        <section class="translation-activity" aria-labelledby="translation-activity-heading" data-summary="true"
+                 data-activity-url="/telegram-feed/translation-activity">
+            <div class="translation-service-heading">
+                {{ icon('refresh') }}<h2 id="translation-activity-heading">Translation status</h2>
             </div>
-            <p id="translation-activity-status" role="status" aria-live="polite">Checking translation activity…</p>
-            <p id="translation-memory-note" class="translation-memory-note"></p>
-            <p>The translation service is managed automatically. If it is unavailable,
-               RSS continues in the original language and a warning appears here.</p>
+            <div class="translation-service-summary" role="status" aria-live="polite">
+                <strong id="translation-service-label">Checking</strong>
+                <p id="translation-activity-status">Checking the translation service.</p>
+            </div>
         </section>
 
         {% if success %}
@@ -84,11 +110,9 @@
         <section class="channel-section" aria-labelledby="channels-heading">
             <div class="section-title">
                 <div>
-                    <h2 id="channels-heading">Your channels</h2>
-                    <p>View content, copy feed links, or update channel settings.</p>
-                    <a href="/dashboard/demo/posts">Explore the demo channel <span aria-hidden="true">↗</span></a>
+                    <h2 id="channels-heading">Channel feeds</h2>
                 </div>
-                <span class="channel-count">{{ statistics["channels"] }} total</span>
+                <span class="channel-count">{{ statistics["channels"] }} {% if statistics['channels'] == 1 %}channel{% else %}channels{% endif %}</span>
             </div>
 
             <div class="channels">
@@ -98,7 +122,7 @@
                         <div class="channel-identity">
                             <span class="channel-avatar" aria-hidden="true">{{ channel["channel_title"][:1] | upper }}</span>
                             <div>
-                                <h3>{{ channel["channel_title"] }}</h3>
+                                <h3 dir="auto" title="{{ channel['channel_title'] }}">{{ channel["channel_title"] }}</h3>
                                 <p>@{{ channel["channel_username"] }}</p>
                             </div>
                         </div>
@@ -107,22 +131,22 @@
                         </span>
                     </div>
 
-                    <div class="actions">
-                        <a class="action-primary" href="/dashboard/channel/{{ channel['channel_username'] }}">View Posts</a>
-                        <button class="action-secondary copy-button" type="button"
-                            data-copy-path="/rss/{{ channel.channel_username }}">Copy RSS</button>
-                        <button class="action-secondary copy-button" type="button"
-                            data-copy-path="/posts?channel={{ channel.channel_username }}">Copy API</button>
-                        <a class="action-secondary" href="/dashboard/settings/{{ channel['channel_id'] }}">Settings</a>
+                    <div class="latest-post-block">
+                        <div class="latest-post-heading"><strong>Latest post</strong><time class="latest-post-time" id="latest-time-{{ channel['channel_username'] }}"></time></div>
+                        <p class="latest-post" id="latest-{{ channel['channel_username'] }}" dir="auto">Loading latest post...</p>
+                        <a class="view-posts-link" href="/telegram-feed/channel/{{ channel['channel_username'] }}">View posts {{ icon('arrow') }}</a>
                     </div>
 
-                    <div class="latest-post-block">
-                        <div class="latest-post-heading"><strong>Latest post</strong><span>Auto-refreshes</span></div>
-                        <p class="latest-post" id="latest-{{ channel['channel_username'] }}">Loading latest post...</p>
+                    <div class="actions">
+                        <button class="action-secondary copy-button" type="button"
+                            data-copy-path="/rss/{{ channel.channel_username }}">{{ icon('link') }} Copy RSS</button>
+                        <button class="action-secondary copy-button" type="button"
+                            data-copy-path="/posts?channel={{ channel.channel_username }}">{{ icon('code') }} Copy API</button>
+                        <a class="action-secondary channel-settings-link" href="/telegram-feed/settings/{{ channel['channel_id'] }}">{{ icon('gear') }} Settings</a>
                     </div>
 
                     <div class="channel-card-footer">
-                        <form action="/dashboard/toggle/{{ channel['channel_id'] }}" method="post">
+                        <form action="/telegram-feed/toggle/{{ channel['channel_id'] }}" method="post">
                             <label class="toggle-control">
                                 <span>{% if channel["enabled"] %}Enabled{% else %}Disabled{% endif %}</span>
                                 <span class="switch">
@@ -133,7 +157,7 @@
                                 </span>
                             </label>
                         </form>
-                        <form action="/dashboard/delete/{{ channel['channel_id'] }}" method="post">
+                        <form action="/telegram-feed/delete/{{ channel['channel_id'] }}" method="post">
                             <button class="delete-button" type="submit">Delete</button>
                         </form>
                     </div>
@@ -156,7 +180,7 @@
     </main>
 
     <div id="copy-toast" class="copy-toast" role="status" aria-live="polite"></div>
-    <script src="/static/js/dashboard.js"></script>
-    <script src="/static/js/translation_activity.js"></script>
+    <script src="/static/js/dashboard.js?v={{ asset_versions['js/dashboard.js'] }}"></script>
+    <script src="/static/js/translation_activity.js?v={{ asset_versions['js/translation_activity.js'] }}"></script>
 </body>
 </html>

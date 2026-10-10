@@ -47,13 +47,13 @@ def render_settings(request, channel, settings, *, error=None, saved=False, stat
     )
 
 
-@router.get("/dashboard/settings/{channel_id}")
+@router.get("/telegram-feed/settings/{channel_id}")
 def channel_settings_page(request: Request, channel_id: str, saved: bool = False):
     channel = require_channel(channel_id)
     return render_settings(request, channel, get_channel_settings(channel_id), saved=saved)
 
 
-@router.post("/dashboard/settings/{channel_id}")
+@router.post("/telegram-feed/settings/{channel_id}")
 def save_channel_settings(
     request: Request, channel_id: str,
     prefix: str = Form(""), suffix: str = Form(""),
@@ -83,7 +83,7 @@ def save_channel_settings(
             request, channel, settings,
             error="Could not save settings. Your entries are still here; please try again.", status_code=500,
         )
-    return RedirectResponse(url=f"/dashboard/settings/{channel_id}?saved=true", status_code=303)
+    return RedirectResponse(url=f"/telegram-feed/settings/{channel_id}?saved=true", status_code=303)
 
 
 class PreviewInput(BaseModel):
@@ -97,7 +97,7 @@ class PreviewInput(BaseModel):
     target_language: str = Field(default="fr", max_length=20)
 
 
-@router.get("/dashboard/settings/{channel_id}/translation-status")
+@router.get("/telegram-feed/settings/{channel_id}/translation-status")
 async def translation_status(channel_id: str):
     require_channel(channel_id)
     try:
@@ -115,7 +115,7 @@ async def translation_status(channel_id: str):
         return JSONResponse(status_code=500, content={"ready": False, "message": "Could not check Ollama. Please try again."})
 
 
-@router.post("/dashboard/settings/{channel_id}/translation-preview")
+@router.post("/telegram-feed/settings/{channel_id}/translation-preview")
 async def translation_preview(channel_id: str, preview: PreviewInput):
     require_channel(channel_id)
     try:

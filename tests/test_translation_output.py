@@ -190,7 +190,7 @@ class TranslationOutputTest(unittest.TestCase):
         store.enqueue_translation(1, self.config, "new-digest")
         self.assertIsNone(store.claim_translation(self.config, "new-digest"))
         self.assertEqual(ElementTree.tostring(self.feed()), before)
-        response = self.client.get("/dashboard/channel/news/output")
+        response = self.client.get("/telegram-feed/channel/news/output")
         self.assertEqual(response.json()["posts"][0]["output_text"], self.current()["output_text"])
 
     def test_source_publication_without_model_identity_prevents_future_queueing(self):
@@ -255,12 +255,12 @@ class TranslationOutputTest(unittest.TestCase):
 
     def test_dashboard_original_and_output_endpoint_are_safe_and_match_feed(self):
         self.complete(translated="<img src=x onerror=alert(1)> Texte traduit")
-        page = self.client.get("/dashboard/channel/news")
+        page = self.client.get("/telegram-feed/channel/news")
         self.assertEqual(page.status_code, 200)
         self.assertIn("BREAKING Event today", page.text)
         self.assertIn("Translated · French", page.text)
         self.assertNotIn("<img src=x onerror=alert(1)>", page.text)
-        response = self.client.get("/dashboard/channel/news/output")
+        response = self.client.get("/telegram-feed/channel/news/output")
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertEqual(response.json()["posts"][0]["output_text"], unescape(self.feed().find("item/description").text))
 
@@ -268,7 +268,7 @@ class TranslationOutputTest(unittest.TestCase):
         for index in range(2, 23):
             self.add_post(index, f"Event {index}")
         self.assertEqual(len(self.feed().findall("item")), 20)
-        self.assertEqual(len(self.client.get("/dashboard/channel/news/output").json()["posts"]), 22)
+        self.assertEqual(len(self.client.get("/telegram-feed/channel/news/output").json()["posts"]), 22)
 
     def test_viewer_asset_url_changes_when_script_changes(self):
         from app.dashboard import posts as posts_view
@@ -282,10 +282,10 @@ class TranslationOutputTest(unittest.TestCase):
                 target.parent.mkdir(parents=True, exist_ok=True)
                 target.write_bytes((posts_view._STATIC_DIRECTORY / name).read_bytes())
             with patch.object(posts_view, "_STATIC_DIRECTORY", assets):
-                before = self.client.get("/dashboard/channel/news")
+                before = self.client.get("/telegram-feed/channel/news")
                 script = assets / "js/channel_posts.js"
                 script.write_bytes(script.read_bytes() + b"\n// Updated viewer\n")
-                after = self.client.get("/dashboard/channel/news")
+                after = self.client.get("/telegram-feed/channel/news")
         pattern = r'src="(/static/js/channel_posts\.js\?v=[a-f0-9]+)"'
         self.assertNotEqual(re.search(pattern, before.text)[1], re.search(pattern, after.text)[1])
         self.assertEqual(before.headers["cache-control"], "no-cache")
@@ -293,5 +293,5 @@ class TranslationOutputTest(unittest.TestCase):
 
     def test_unknown_channel_and_empty_feed(self):
         self.assertEqual(get_channel_outputs("unknown"), [])
-        self.assertEqual(self.client.get("/dashboard/channel/unknown").status_code, 200)
+        self.assertEqual(self.client.get("/telegram-feed/channel/unknown").status_code, 200)
         self.assertEqual(ElementTree.fromstring(generate_rss("unknown")).findall("channel/item"), [])

@@ -58,7 +58,7 @@ class PostPresentationTest(unittest.TestCase):
                 patch("app.dashboard.post_status.get_activity", side_effect=AssertionError("Demo cannot read live activity")), \
                 patch("app.dashboard.posts.get_channel_outputs", side_effect=AssertionError("Demo cannot read real posts")), \
                 patch("app.llm.ollama_client.OllamaClient.__init__", side_effect=AssertionError("Demo cannot use Ollama")):
-            page = TestClient(app).get("/dashboard/demo/posts")
+            page = TestClient(app).get("/telegram-feed/demo/posts")
         self.assertEqual(page.status_code, 200)
         self.assertIn("Demo News", page.text)
         self.assertIn('data-demo="true"', page.text)

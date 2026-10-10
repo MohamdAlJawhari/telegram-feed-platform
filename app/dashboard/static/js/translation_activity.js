@@ -3,7 +3,25 @@
     if (!panel) return;
     const status = document.getElementById("translation-activity-status");
     const note = document.getElementById("translation-memory-note");
+    const label = document.getElementById("translation-service-label");
     let stopped = false;
+
+    function showSummary(data) {
+        if (data.state === "checking") {
+            label.textContent = "Checking";
+            status.textContent = "Checking the translation service.";
+        } else if (["paused", "unavailable", "stopped"].includes(data.state)) {
+            label.textContent = "Temporarily unavailable";
+            status.textContent = "News continues through RSS in its original language.";
+        } else if (data.running || data.waiting) {
+            label.textContent = "Translating";
+            const running = data.running || 0, waiting = data.waiting || 0;
+            status.textContent = `${running} ${running === 1 ? "post" : "posts"} in progress, ${waiting} waiting.`;
+        } else {
+            label.textContent = "Ready";
+            status.textContent = "Translation is available.";
+        }
+    }
 
     async function refresh() {
         try {
@@ -12,13 +30,15 @@
             });
             if (!response.ok) throw new Error("Activity check failed");
             const data = await response.json();
-            status.textContent = data.message;
-            note.textContent = data.memory_note || "";
+            if (panel.dataset.summary === "true") showSummary(data);
+            else status.textContent = data.message;
+            if (note) note.textContent = data.memory_note || "";
             panel.dataset.state = data.state;
             panel.dataset.memoryState = data.memory_state || "unknown";
         } catch (error) {
-            status.textContent = "Could not check translation activity. RSS remains available.";
-            note.textContent = "";
+            if (panel.dataset.summary === "true") showSummary({state: "unavailable"});
+            else status.textContent = "Could not check translation activity. RSS remains available.";
+            if (note) note.textContent = "";
             panel.dataset.state = "unavailable";
         } finally {
             // Schedule after completion so requests never overlap.

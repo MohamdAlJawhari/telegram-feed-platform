@@ -84,7 +84,7 @@ On the first run, Telethon may ask for your Telegram phone number, login code, a
 Open the dashboard:
 
 ```text
-http://127.0.0.1:8000/dashboard
+http://127.0.0.1:8000/telegram-feed
 ```
 
 Interactive API documentation is available at:
@@ -303,7 +303,7 @@ Restart the application after updating the code. Startup adds the translation
 settings columns to SQLite automatically while preserving existing channel rules.
 Translation defaults to off for existing and newly added channels.
 
-1. Open `/dashboard`, then **Settings** for an existing channel.
+1. Open `/telegram-feed`, then **Settings** for an existing channel.
 2. Confirm the **Translation** section shows Ollama connected and your model available.
 3. Turn on **Enable translation**, then choose the source and target languages.
 4. Paste sample news into **Sample news text**. Enter a prefix/suffix in the language
@@ -665,7 +665,7 @@ ask ordinary users to manage Ollama, model downloads, memory or environment
 variables. They direct setup problems to an administrator.
 
 Choose **Explore the demo channel** in the dashboard or open
-`/dashboard/demo/posts`. The sample channel contains 23 fictional examples covering
+`/telegram-feed/demo/posts`. The sample channel contains 23 fictional examples covering
 all status definitions, Arabic translations, source fallbacks, text rules and
 photo/video/document displays. It uses the same template, style controls and status
 presentation as real channels, but does not read/write the project database, call

@@ -2,6 +2,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Channel Settings</title>
@@ -11,7 +12,7 @@
 <body>
     {{ symbols() }}
     <main class="settings-page">
-        <a class="back-link" href="/dashboard"><span aria-hidden="true">←</span> Back to Dashboard</a>
+        <a class="back-link" href="/telegram-feed"><span aria-hidden="true">←</span> Back to Telegram Feed</a>
         <header class="page-header">
             <div class="settings-channel-avatar" aria-hidden="true">{{ channel["channel_username"][:1] | upper }}</div>
             <div class="settings-channel-heading">
@@ -26,9 +27,9 @@
         {% if saved %}<p class="settings-notice success-notice" role="status">Settings saved.</p>{% endif %}
 
         <div class="settings-layout">
-            <form id="channel-settings-form" class="settings-form" action="/dashboard/settings/{{ channel_id }}" method="post"
-                  data-preview-url="/dashboard/settings/{{ channel_id }}/translation-preview"
-                  data-status-url="/dashboard/settings/{{ channel_id }}/translation-status">
+            <form id="channel-settings-form" class="settings-form" action="/telegram-feed/settings/{{ channel_id }}" method="post"
+                  data-preview-url="/telegram-feed/settings/{{ channel_id }}/translation-preview"
+                  data-status-url="/telegram-feed/settings/{{ channel_id }}/translation-status">
                 <section class="settings-card text-settings" aria-label="Message text settings">
                     <label for="prefix">Prefix</label>
                     <textarea id="prefix" name="prefix" rows="2" dir="auto">{{ settings["prefix"] }}</textarea>

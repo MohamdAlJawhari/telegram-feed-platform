@@ -316,6 +316,13 @@ def get_dashboard_statistics():
     cursor.execute("SELECT COUNT(*) FROM channels")
     channels = cursor.fetchone()[0]
 
+    cursor.execute("""
+        SELECT COUNT(*) FROM channels AS c
+        JOIN channel_settings AS s ON s.channel_id = c.channel_id
+        WHERE s.translation_enabled = 1
+    """)
+    translation_channels = cursor.fetchone()[0]
+
     cursor.execute("SELECT COUNT(*) FROM posts")
     posts = cursor.fetchone()[0]
 
@@ -334,12 +341,29 @@ def get_dashboard_statistics():
 
     return {
         "channels": channels,
+        "translation_channels": translation_channels,
         "posts": posts,
+        "media": sum(message_types.get(kind, 0) for kind in ("photo", "video", "document")),
         "photos": message_types.get("photo", 0),
         "videos": message_types.get("video", 0),
         "documents": message_types.get("document", 0),
         "texts": message_types.get("text", 0),
     }
+
+def get_translation_channels():
+    """Channels with translation enabled in settings, including paused channels."""
+    conn = get_connection()
+    try:
+        return [dict(row) for row in conn.execute("""
+            SELECT c.channel_id, c.channel_title, c.channel_username, c.enabled,
+                   s.source_language, s.target_language
+            FROM channels c JOIN channel_settings s ON s.channel_id = c.channel_id
+            WHERE s.translation_enabled = 1
+            ORDER BY c.channel_title
+        """)]
+    finally:
+        conn.close()
+
 
 def get_channel_summaries():
     """
@@ -361,7 +385,13 @@ def get_channel_summaries():
                 WHERE p.channel_id = c.channel_id
                 ORDER BY p.message_id DESC
                 LIMIT 1
-            ) AS latest_post
+            ) AS latest_post,
+            (
+                SELECT date FROM posts p
+                WHERE p.channel_id = c.channel_id
+                ORDER BY p.message_id DESC
+                LIMIT 1
+            ) AS latest_post_date
 
         FROM channels c
         ORDER BY c.channel_title

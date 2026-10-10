@@ -3,8 +3,47 @@
     const cards = [...document.querySelectorAll(".channel-card")];
     const noResults = document.getElementById("no-search-results");
     const toast = document.getElementById("copy-toast");
+    const translationDialog = document.getElementById("translation-channels-dialog");
+    const translationTrigger = document.getElementById("translation-channels-trigger");
+    translationTrigger.addEventListener("click", () => {
+        translationDialog.showModal();
+        translationTrigger.setAttribute("aria-expanded", "true");
+    });
+    document.getElementById("translation-channels-close").addEventListener("click", () => translationDialog.close());
+    translationDialog.addEventListener("close", () => {
+        translationTrigger.setAttribute("aria-expanded", "false");
+        translationTrigger.focus();
+    });
+    translationDialog.addEventListener("keydown", event => {
+        if (event.key !== "Tab") return;
+        const targets = [...translationDialog.querySelectorAll("button, a[href]")];
+        const first = targets[0], last = targets[targets.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault(); last.focus();
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault(); first.focus();
+        }
+    });
     let toastTimer;
     let latestPostsRefreshId = 0;
+    const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+    function updatePostTime(element, value) {
+        const date = new Date(value);
+        if (!value || Number.isNaN(date.getTime())) {
+            element.textContent = "";
+            element.removeAttribute("datetime");
+            element.removeAttribute("title");
+            return;
+        }
+        const seconds = (date.getTime() - Date.now()) / 1000;
+        const [unit, size] = Math.abs(seconds) < 60 ? ["second", 1]
+            : Math.abs(seconds) < 3600 ? ["minute", 60]
+            : Math.abs(seconds) < 86400 ? ["hour", 3600] : ["day", 86400];
+        element.textContent = relativeTime.format(Math.round(seconds / size), unit);
+        element.dateTime = date.toISOString();
+        element.title = date.toLocaleString();
+    }
 
     function searchChannels() {
         const query = searchInput.value.trim().toLocaleLowerCase();
@@ -70,17 +109,26 @@
         const refreshId = ++latestPostsRefreshId;
 
         try {
-            const response = await fetch("/channel-summary");
+            const response = await fetch("/telegram-feed/channel-summary");
             if (!response.ok) throw new Error(`Request failed: ${response.status}`);
             const channels = await response.json();
             if (refreshId !== latestPostsRefreshId) return;
 
             channels.forEach(channel => {
                 const element = document.getElementById(`latest-${channel.channel_username}`);
-                if (element) element.textContent = channel.latest_post || "No posts yet";
+                if (element) {
+                    element.textContent = channel.latest_post || (channel.latest_post_date ? "Post without text" : "No posts yet");
+                    const time = document.getElementById(`latest-time-${channel.channel_username}`);
+                    if (time) updatePostTime(time, channel.latest_post_date);
+                }
             });
         } catch (error) {
             console.error("Could not refresh latest posts:", error);
+            cards.forEach(card => {
+                const preview = card.querySelector(".latest-post");
+                if (preview.textContent === "Loading latest post...")
+                    preview.textContent = "Preview unavailable. Open posts to view this channel.";
+            });
         }
     }
 

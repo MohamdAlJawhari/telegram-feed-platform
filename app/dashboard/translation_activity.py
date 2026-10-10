@@ -10,6 +10,6 @@ from app.dashboard.post_status import present_activity
 router = APIRouter()
 
 
-@router.get("/dashboard/translation-activity")
+@router.get("/telegram-feed/translation-activity")
 def translation_activity():
     return JSONResponse(present_activity(get_activity()), headers={"Cache-Control": "no-store"})

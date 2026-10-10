@@ -3,6 +3,7 @@
 <html lang="en">
 
 <head>
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@{{ channel_username }} · Posts</title>
@@ -14,7 +15,7 @@
     {{ symbols() }}
     <main class="posts-page" data-channel-username="{{ channel_username }}" data-demo="{{ 'true' if demo else 'false' }}"
           data-output-url="{{ '' if demo else request.url_for('channel_output', channel_username=channel_username).path }}">
-        <a href="/dashboard" class="back-link"><span aria-hidden="true">←</span> Back to Dashboard</a>
+        <a href="/telegram-feed" class="back-link"><span aria-hidden="true">←</span> Back to Telegram Feed</a>
 
         <header class="posts-header">
             <div class="channel-avatar" aria-hidden="true">{{ channel_username[:1] | upper }}</div>
@@ -125,7 +126,7 @@
         </section>
         <p id="post-output-refresh-status" role="status" aria-live="polite"></p>
         {% if not demo %}
-        <section class="translation-activity" data-activity-url="/dashboard/translation-activity"
+        <section class="translation-activity" data-activity-url="/telegram-feed/translation-activity"
                  aria-label="Translation service across all channels">
             <strong>Translation service</strong>
             <p id="translation-activity-status" role="status" aria-live="polite">Checking the translation service…</p>

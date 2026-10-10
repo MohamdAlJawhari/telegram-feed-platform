@@ -19,7 +19,7 @@ _STATIC_DIRECTORY = Path(__file__).parent / "static"
 _PAGE_ASSETS = ("css/common.css", "css/channel_posts.css", "js/channel_posts.js", "js/translation_activity.js")
 
 
-@router.get("/dashboard/channel/{channel_username}")
+@router.get("/telegram-feed/channel/{channel_username}")
 def channel_posts(request: Request, channel_username: str):
     posts = present_posts(channel_username, get_channel_outputs(channel_username))
     for post in posts:
@@ -41,7 +41,7 @@ def render_posts(request, channel_username, posts, *, demo=False):
     )
 
 
-@router.get("/dashboard/channel/{channel_username}/output")
+@router.get("/telegram-feed/channel/{channel_username}/output")
 def channel_output(channel_username: str):
     fields = ("id", "text", "output_text", "translation_status", "translation_label", "translation_message",
               "translation_tone", "translation_icon", "rss_label")
@@ -49,6 +49,6 @@ def channel_output(channel_username: str):
     return JSONResponse({"posts": posts}, headers={"Cache-Control": "no-store"})
 
 
-@router.get("/dashboard/demo/posts")
+@router.get("/telegram-feed/demo/posts")
 def demo_posts(request: Request):
     return render_posts(request, "demo_news", get_demo_posts(), demo=True)

@@ -81,7 +81,7 @@ class OllamaRuntimeTest(unittest.IsolatedAsyncioTestCase):
     def test_dashboard_has_no_startup_switch_or_settings_endpoint(self):
         app = FastAPI()
         app.include_router(router)
-        response = TestClient(app).post("/dashboard/ollama-settings", data={"ollama_auto_start": "false"})
+        response = TestClient(app).post("/telegram-feed/ollama-settings", data={"ollama_auto_start": "false"})
         self.assertEqual(response.status_code, 404)
         markup = Path("app/dashboard/templates/dashboard.html").read_text(encoding="utf-8")
         self.assertNotIn('name="ollama_auto_start"', markup)
