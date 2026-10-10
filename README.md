@@ -293,7 +293,7 @@ when prompts/options/processing behavior change to invalidate older outputs.
 Previews continue to use unsaved input and do not persist it. Step 5 adds automatic
 queueing, worker startup, and recovery of unfinished running jobs using this storage
 API. Step 6 provides saved results in feeds/dashboard. Failures are
-retained without automatic retry; retry controls follow in Step 7.
+retained without retries. Step 7 adds Ollama readiness and final source fallback.
 
 ## Dashboard workflow
 
@@ -525,11 +525,11 @@ menu. This configures the Ollama server; adding it to this project's `.env` does
 not configure an already running server. See the
 [official Ollama FAQ](https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests).
 
-If Ollama cannot be reached or the configured model is missing, new requests stay
-in SQLite and are processed once Ollama is available. Generation failures are
-saved as `failed` without partial output; other jobs continue. Failed jobs are
-not automatically retried in this step; retry controls are planned for step 7.
-Pending jobs survive restart, and interrupted running jobs return to pending
+If Ollama cannot be reached or the configured model is missing, RSS still publishes
+source text. Once a source fallback is included in a generated feed, that post is
+final and cannot be translated later. Generation failures are also final, without
+partial output or retries; other jobs continue. Unpublished pending jobs survive
+restart, and interrupted unpublished running jobs return to pending
 with fresh attempt tokens. A per-database OS file lock allows only one worker
 manager to recover jobs, including during application reloads. Other processes
 can still save posts/settings and queue requests. Leave the `.translation.lock`
@@ -554,8 +554,8 @@ available memory.
 
 For an application check, restart the app, enable translation for two channels,
 and save their settings. Stored posts will be queued; new messages also queue as
-they arrive. Quit Ollama and receive another message, then reopen Ollama to verify
-that queued work resumes. Saved results can be inspected in `translation_jobs`
+they arrive. Recovery resumes unpublished work; posts already finalized as source
+are excluded. Saved results can be inspected in `translation_jobs`
 and outstanding queue intents in `translation_requests` using a SQLite viewer.
 The dashboard and RSS use saved translated output as described below (step 6).
 
@@ -596,7 +596,8 @@ An invalid replacement rule also falls back to source text with affixes, with a
 dashboard processing warning, so it does not prevent RSS delivery.
 
 RSS and dashboard reads perform no Ollama calls and never enqueue or generate
-work. The worker records the last verified model digest in SQLite, keyed by the
+translation work. RSS generation records final source fallback decisions in SQLite;
+dashboard previews only read and do not finalize posts. The worker records the last verified model digest in SQLite, keyed by the
 configured Ollama address and model. A matching completed translation remains
 usable while Ollama is stopped or its model is missing; new or unfinished posts
 still publish source text. Model changes are detected when the worker next checks
@@ -614,10 +615,12 @@ represent are removed at serialization. The feed language is set only when all
 selected news bodies have the same known language; mixed fallback/translated
 feeds do not incorrectly claim a single language.
 
-Translation becoming ready updates the existing RSS item without changing its
-GUID. Some readers/automations may not revisit an item already consumed in its
-source language; immediate delivery therefore cannot guarantee that every
-consumer receives the later translation.
+A post uses translation only if it is ready before source fallback is finalized.
+Once included in RSS using source text, its body, headline language, prefix and
+suffix are preserved, even after recovery, restart or settings changes. Late model
+responses are rejected atomically. The application records feed generation, not
+whether a particular subscriber has consumed the item. It cannot reconstruct
+source deliveries made before this feature was installed.
 
 Run the temporary-data delivery checks:
 
@@ -628,20 +631,87 @@ Run the temporary-data delivery checks:
 ```
 
 Expect `Delivery check passed`. The offline check uses a simulated model; the live
-check uses your installed model for the first result. Both verify source delivery
-before completion, translated title/body, stable GUID, offline cached output,
-source fallback during a simulated outage/failure, stale-output rejection and
+check uses your installed model for the first result. Both verify read-only previews,
+translated title/body, stable GUID, offline cached output, final source fallback
+during a simulated outage/failure, stale-output rejection and
 unchanged originals. They use temporary databases and never stop your real
 Ollama service or change your project's posts/settings.
 
 For a manual application test, restart the app, enable translation in a channel,
 then open **View Posts → RSS output** and `/rss/<channel_username>`. Receive a
-new post: source text should appear immediately, then the translated output should
-replace it when ready. Quit Ollama, receive another post, and check that RSS still
-includes the source text while the dashboard shows a warning. Reopen Ollama to
-resume pending work. Completed cached translations remain readable during the
-outage. Finally, change a prefix or target language: stale translations should
-immediately fall back to current source processing until a fresh job completes.
+new post: the dashboard preview updates when translation completes, provided the
+post has not already been finalized as source by RSS. RSS remains immediate.
+Previously completed translations remain usable during an outage. Final source
+posts stay unchanged when settings change.
+
+### Ollama startup and readiness (implementation step 7)
+
+Local Ollama startup is automatic; there is no user switch. The dashboard's
+**Background translation** panel reports startup, readiness and warnings. Old
+saved startup preferences are ignored. Availability/model checks run at
+application startup and periodically, so enabling translation or
+installing the missing model is noticed automatically.
+
+If the configured local HTTP server is unreachable, the worker attempts to start
+the installed `ollama serve` once per application run, in the background without
+a visible terminal. The command is documented in the [Ollama CLI reference](https://docs.ollama.com/cli).
+It uses the configured loopback address/port and preserves existing Ollama
+environment settings. Windows discovery uses PATH or the usual installation in
+`%LOCALAPPDATA%/Programs/Ollama`, described in [Ollama's Windows documentation](https://docs.ollama.com/windows).
+Remote addresses, HTTPS endpoints and proxy paths receive checks only. The app
+does not install Ollama, download models, repeatedly relaunch a stopped server,
+or stop Ollama on shutdown. Its connection client and runtime helper remain
+independent of the translation task for future reuse.
+
+Startup failures, an unresponsive server and missing models produce friendly
+warnings; RSS keeps working. A startup attempt has a 30-second grace period, after
+which the warning asks you to open Ollama manually. Once readiness returns, new
+posts can translate, while failed or source-finalized posts stay unchanged.
+
+For automated checks that use fake connections and temporary databases:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_ollama_runtime tests.test_translation_recovery -q
+.\.venv\Scripts\python.exe -m app.translation.check_delivery
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+```
+
+For a manual check, quit Ollama and restart this
+application. The dashboard should show startup progress and then readiness. If
+automatic startup cannot find or start your installation, its warning explains
+what to do. Closing the desktop window or signing out of ollama.com does not
+necessarily stop the local server, including the background server this app
+started. `ollama signout` concerns account access; local downloaded models keep
+working. See the [CLI commands](https://docs.ollama.com/cli) and
+[cloud authentication](https://docs.ollama.com/cloud).
+
+To check the real missing-model response without removing yours or changing the
+application configuration, keep Ollama running and use the independent client check:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.llm.check_ollama --model translation-test-missing:latest
+```
+
+Expect a model-not-installed error (exit code 1 is intentional). No model is
+downloaded and no database is changed. Ignore the error's `ollama pull` suggestion
+for this deliberately nonexistent test model. The recovery tests above simulate the same
+failure through the worker and verify source delivery using temporary posts.
+Avoid changing your application's model just to test it against real feeds:
+source fallbacks published during that test would become final.
+
+To test a missing Ollama installation safely, run the simulated executable-not-found
+test; it does not uninstall Ollama or change your real posts:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest tests.test_ollama_runtime.OllamaRuntimeTest.test_launch_failure_is_actionable_and_not_repeated -v
+```
+
+For an actual server-off test, let the app perform its one automatic launch first.
+Then end that Ollama server process in Task Manager while leaving this app running.
+It will report the outage without launching a second server in the same run. Send
+a new post and fetch RSS to verify final source fallback, then open Ollama manually
+and test translation with another new post. The automatically launched server has
+no desktop window and remains running after this application exits.
 
 ### Benchmark translation capacity
 

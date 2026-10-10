@@ -77,13 +77,12 @@ class TranslationOutputTest(unittest.TestCase):
     def feed(self):
         return ElementTree.fromstring(generate_rss("news")).find("channel")
 
-    def test_pending_and_running_publish_source_without_mutations_or_network(self):
+    def test_dashboard_pending_and_running_reads_do_not_publish_or_mutate(self):
         self.queue()
         for expected in ("pending", "running"):
             output = self.current()
             self.assertEqual(output["translation_status"], expected)
             self.assertEqual(output["output_text"], "Latest news\n\nMeeting today\n\nSource: Telegram")
-            self.assertEqual(self.feed().find("item/title").text, "Meeting today")
             if expected == "pending":
                 store.claim_translation(self.config, self.digest)
         with closing(database.get_connection()) as conn:
@@ -91,7 +90,7 @@ class TranslationOutputTest(unittest.TestCase):
             self.assertEqual(conn.execute("SELECT text FROM posts").fetchone()[0], "BREAKING Event today")
 
     def test_completed_body_title_language_affixes_and_guid(self):
-        before = self.feed().find("item/guid").text
+        before = "1-1"
         self.complete()
         output = self.current()
         self.assertEqual(output["translation_status"], "completed")
@@ -174,8 +173,55 @@ class TranslationOutputTest(unittest.TestCase):
         self.assertIn("BREAKING Event today", self.feed().find("item/description").text)
         self.settings_change(replace_words="Event=>Meeting")
         with patch("app.translation.output.TranslationConfig.from_env", side_effect=TranslationConfigurationError("Internal setting")):
-            self.assertEqual(self.current()["translation_status"], "unavailable")
-            self.assertIn("Meeting today", self.feed().find("item/description").text)
+            self.assertEqual(self.current()["translation_status"], "source_final")
+            self.assertIn("BREAKING Event today", self.feed().find("item/description").text)
+
+    def test_rss_source_publication_revokes_running_callback_and_survives_recovery(self):
+        self.queue()
+        job = store.claim_translation(self.config, self.digest)
+        before = ElementTree.tostring(self.feed())
+        self.assertEqual(self.current()["translation_status"], "source_final")
+        self.assertFalse(store.complete_translation(job["id"], job["claim_token"], "Late translation", self.config, self.digest))
+        self.settings_change(prefix="Changed", target_language="ar")
+        remember_model(self.connection.base_url, self.config.model, "new-digest")
+        from app.translation import queue
+        queue.seed_requests()
+        queue.recover_running_jobs()
+        store.enqueue_translation(1, self.config, "new-digest")
+        self.assertIsNone(store.claim_translation(self.config, "new-digest"))
+        self.assertEqual(ElementTree.tostring(self.feed()), before)
+        response = self.client.get("/dashboard/channel/news/output")
+        self.assertEqual(response.json()["posts"][0]["output_text"], self.current()["output_text"])
+
+    def test_source_publication_without_model_identity_prevents_future_queueing(self):
+        with closing(database.get_connection()) as conn, conn:
+            conn.execute("DELETE FROM translation_model_identity")
+        self.feed()
+        remember_model(self.connection.base_url, self.config.model, self.digest)
+        self.assertIsNone(self.queue())
+        self.assertEqual(self.current()["translation_status"], "source_final")
+        second = self.add_post(2, "A different post")
+        self.complete(second, "Un autre article")
+        self.assertEqual(self.current()["translation_status"], "completed")
+
+    def test_failed_post_is_final_even_after_settings_or_model_change(self):
+        self.queue()
+        job = store.claim_translation(self.config, self.digest)
+        store.fail_translation(job["id"], job["claim_token"], OllamaConnectionError("Unavailable"))
+        before = self.current()["output_text"]
+        self.settings_change(prefix="Updated")
+        store.enqueue_translation(1, self.config, "new-digest")
+        self.assertIsNone(store.claim_translation(self.config, "new-digest"))
+        self.assertEqual(self.current()["output_text"], before)
+
+    def test_failed_feed_serialization_does_not_finalize_source_or_revoke_job(self):
+        self.queue()
+        job = store.claim_translation(self.config, self.digest)
+        with patch("app.rss.rss._render_rss", side_effect=ValueError("Feed serialization failed")):
+            with self.assertRaises(ValueError):
+                generate_rss("news")
+        self.assertEqual(self.current()["translation_status"], "running")
+        self.assertTrue(store.complete_translation(job["id"], job["claim_token"], "Réunion", self.config, self.digest))
 
     def test_media_links_dates_and_mixed_language_metadata(self):
         self.complete()

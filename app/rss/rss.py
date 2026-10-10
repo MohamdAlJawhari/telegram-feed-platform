@@ -1,12 +1,14 @@
 import mimetypes
 import os
 import re
+from contextlib import closing
 from html import escape
 from urllib.parse import quote
 
 from feedgen.feed import FeedGenerator
 
 from app.media.media_service import build_public_media_url
+from app.database.database import get_connection
 from app.processing.processor import extract_title
 from app.translation.output import get_channel_outputs
 
@@ -17,7 +19,15 @@ def xml_text(text):
 
 
 def generate_rss(channel_name):
-    posts = get_channel_outputs(channel_name, limit=20)
+    # Commit source decisions only after the entire feed serializes successfully.
+    # This also makes output selection and late-result rejection one transaction.
+    with closing(get_connection()) as conn, conn:
+        conn.execute("BEGIN IMMEDIATE")
+        posts = get_channel_outputs(channel_name, limit=20, publish=True, connection=conn)
+        return _render_rss(channel_name, posts)
+
+
+def _render_rss(channel_name, posts):
     fg = FeedGenerator()
     fg.title(xml_text(channel_name))
     fg.description(f"RSS feed for Telegram channel '{xml_text(channel_name)}'")

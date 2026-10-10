@@ -16,11 +16,11 @@ def queue_counts():
         """).fetchone()[0]
         counts = conn.execute("""
             SELECT
-                COUNT(DISTINCT CASE WHEN j.status = 'pending' OR
-                    (r.post_id IS NOT NULL AND COALESCE(j.status, '') != 'running')
+                COUNT(DISTINCT CASE WHEN f.post_id IS NULL AND (j.status = 'pending' OR
+                    (r.post_id IS NOT NULL AND COALESCE(j.status, '') != 'running'))
                     THEN p.id END) AS waiting,
                 COUNT(DISTINCT CASE WHEN j.status = 'failed' AND
-                    COALESCE(j.error_type, '') != 'Superseded' THEN p.id END) AS failed
+                    COALESCE(j.error_type, '') NOT IN ('Superseded', 'SourceDelivered') THEN p.id END) AS failed
             FROM posts p JOIN channels c ON (
                 p.channel_id = c.channel_id OR
                 (p.channel_id IS NULL AND lower(p.channel_username) = lower(c.channel_username))
@@ -28,6 +28,7 @@ def queue_counts():
             LEFT JOIN post_translations t ON t.post_id = p.id
             LEFT JOIN translation_jobs j ON j.id = t.current_job_id
             LEFT JOIN translation_requests r ON r.post_id = p.id
+            LEFT JOIN rss_source_fallbacks f ON f.post_id = p.id
             WHERE c.enabled = 1 AND s.translation_enabled = 1
         """).fetchone()
         return {"channels": channels, "waiting": counts["waiting"], "failed": counts["failed"]}

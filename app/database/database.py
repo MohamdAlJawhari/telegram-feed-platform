@@ -159,6 +159,19 @@ def create_database():
                 PRIMARY KEY(base_url, model)
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS rss_source_fallbacks (
+                post_id INTEGER PRIMARY KEY,
+                output_text TEXT NOT NULL,
+                body_text TEXT NOT NULL,
+                output_language TEXT,
+                translation_status TEXT NOT NULL,
+                translation_label TEXT NOT NULL,
+                translation_message TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(post_id) REFERENCES posts(id)
+            )
+        """)
         conn.commit()
     except Exception:
         conn.rollback()

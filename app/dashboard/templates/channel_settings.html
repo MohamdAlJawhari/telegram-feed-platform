@@ -90,7 +90,7 @@
                         </div>
                     </div>
                     <p class="field-help">Prefixes and suffixes are added after translation and stay as written. Write them in the language you want readers to see.</p>
-                    <p class="field-help">Saved settings queue stored posts and new messages for background translation. RSS uses a saved translation when ready and publishes processed source text immediately otherwise.</p>
+                    <p class="field-help">Saved settings queue unpublished posts and new messages for background translation. RSS uses a translation when ready; otherwise it publishes source text immediately. Source fallback and failed posts are final and won't be translated later.</p>
                     <div class="connection-row">
                         <p id="translation-connection-status" role="status" aria-live="polite">Checking Ollama…</p>
                         <button id="check-translation-connection" class="add-button" type="button">Check connection</button>

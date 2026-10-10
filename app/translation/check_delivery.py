@@ -41,10 +41,9 @@ async def check(live):
             original = "BREAKING The event starts at ten."
             save_post("delivery", "Delivery check", "delivery_check", 1, original,
                       "text", None, "2026-10-09T10:00:00+00:00")
-            before = item()
-            guid = before.find("guid").text
-            assert "meeting" in before.find("description").text
-            print("PASS: RSS delivered processed source text before any translation was available.")
+            guid = "delivery-1"
+            assert "meeting" in get_channel_outputs("delivery_check")[0]["output_text"]
+            print("PASS: Dashboard preview shows source without finalizing delivery.")
             config = TranslationConfig.from_env()
             await client.require_model(config.model)
             worker = TranslationWorker(client=client, translation_config=config,
@@ -78,7 +77,16 @@ async def check(live):
             with closing(database.get_connection()) as conn:
                 second_id = conn.execute("SELECT id FROM posts WHERE message_id = 2").fetchone()[0]
             store.enqueue_translation(second_id, config, digest)
-            job = store.claim_translation(config, digest, post_id=second_id)
+            assert store.claim_translation(config, digest, post_id=second_id) is None
+            assert get_channel_outputs("delivery_check")[0]["translation_status"] == "source_final"
+            print("PASS: Source publication is final; recovery cannot queue it again.")
+
+            save_post("delivery", "Delivery check", "delivery_check", 3, original,
+                      "text", None, "2026-10-09T10:02:00+00:00")
+            with closing(database.get_connection()) as conn:
+                third_id = conn.execute("SELECT id FROM posts WHERE message_id = 3").fetchone()[0]
+            store.enqueue_translation(third_id, config, digest)
+            job = store.claim_translation(config, digest, post_id=third_id)
             store.fail_translation(job["id"], job["claim_token"], OllamaConnectionError("Simulated failure"))
             assert get_channel_outputs("delivery_check")[0]["translation_status"] == "failed"
             assert "meeting" in item().find("description").text
@@ -88,10 +96,11 @@ async def check(live):
             update_channel_settings("delivery", **settings)
             views = get_channel_outputs("delivery_check")
             assert all(view["translation_status"] != "completed" for view in views)
-            assert all(view["output_text"].startswith("Updated news") for view in views)
+            assert views[-1]["output_text"].startswith("Updated news")
+            assert all(view["output_text"].startswith("Latest news") for view in views[:-1])
             with closing(database.get_connection()) as conn:
                 assert all(row[0] == original for row in conn.execute("SELECT text FROM posts"))
-            print("PASS: Changed settings rejected stale translations; originals remained unchanged.")
+            print("PASS: Changed settings rejected stale translations but preserved final source fallbacks and originals.")
             print("Delivery check passed. Only a temporary database was used.")
         finally:
             try:

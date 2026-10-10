@@ -10,6 +10,8 @@ from app.database.database import get_connection
 from app.processing.processor import add_affixes, process_body
 from app.translation.languages import normalize_language
 from app.translation.service import TranslationConfig, TranslationConfigurationError, TranslationOutputError
+from app.translation.delivery import saved_fallback, finish_source
+from app.dashboard.translation_errors import translation_error_message
 
 
 # Bump this when prompts, generation options, or processing semantics change.
@@ -66,6 +68,8 @@ def _snapshot(connection, post_id, config, model_digest):
 
 
 def _is_current(connection, job, config, model_digest):
+    if job["status"] != "failed" and saved_fallback(connection, job["post_id"]) is not None:
+        return False
     pointer = connection.execute(
         "SELECT current_job_id FROM post_translations WHERE post_id = ?", (job["post_id"],),
     ).fetchone()
@@ -96,6 +100,19 @@ def enqueue_translation(post_id: int, config: TranslationConfig, model_digest: s
     """
     with closing(get_connection()) as connection, connection:
         connection.execute("BEGIN IMMEDIATE")
+        if saved_fallback(connection, post_id) is not None:
+            job = connection.execute("""
+                SELECT j.* FROM translation_jobs j JOIN post_translations t ON t.current_job_id = j.id
+                WHERE t.post_id = ? AND j.status = 'failed'
+            """, (post_id,)).fetchone()
+            return dict(job) if job else None
+        # Existing failures from earlier application versions are terminal too.
+        previous = connection.execute("""
+            SELECT j.* FROM translation_jobs j JOIN post_translations t ON t.current_job_id = j.id
+            WHERE t.post_id = ? AND j.status = 'failed' AND COALESCE(j.error_type, '') != 'Superseded'
+        """, (post_id,)).fetchone()
+        if previous is not None:
+            return dict(previous)
         snapshot = _snapshot(connection, post_id, config, model_digest)
         pointer = connection.execute("SELECT current_job_id FROM post_translations WHERE post_id = ?", (post_id,)).fetchone()
         if snapshot is None:
@@ -218,9 +235,19 @@ def complete_translation(job_id: int, claim_token: str, translated_body: str,
 def fail_translation(job_id: int, claim_token: str, error: Exception) -> bool:
     """Retain failure details without replacing originals or persisting partial output."""
     with closing(get_connection()) as connection, connection:
+        connection.execute("BEGIN IMMEDIATE")
         cursor = connection.execute("""
             UPDATE translation_jobs SET status = 'failed', claim_token = NULL,
                 error_type = ?, error_message = ?, updated_at = CURRENT_TIMESTAMP
             WHERE id = ? AND status = 'running' AND claim_token = ?
         """, (type(error).__name__, str(error)[:2000], job_id, claim_token))
-        return cursor.rowcount == 1
+        if cursor.rowcount != 1:
+            return False
+        job = connection.execute("SELECT * FROM translation_jobs WHERE id = ?", (job_id,)).fetchone()
+        snapshot = json.loads(job["snapshot_json"])
+        finish_source(connection, job["post_id"], dict(
+            output_text=add_affixes(job["processed_text"], snapshot["settings"]),
+            body_text=job["processed_text"], output_language=snapshot["source_language"],
+            translation_status="failed", translation_message=translation_error_message(error) + " RSS is using source text.",
+        ))
+        return True

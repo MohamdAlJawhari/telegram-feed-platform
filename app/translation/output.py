@@ -1,7 +1,7 @@
-"""Shared RSS/dashboard output selection: SQLite reads only, no generation."""
+"""Shared output selection; RSS records final fallback, dashboards only read."""
 
 import re
-from contextlib import closing
+from contextlib import closing, ExitStack
 
 from app.database.database import get_connection
 from app.dashboard.translation_errors import translation_error_message
@@ -14,6 +14,7 @@ from app.translation.activity import get_activity
 from app.translation.languages import LANGUAGES, normalize_language
 from app.translation.service import TranslationConfig
 from app.translation.store import _snapshot
+from app.translation.delivery import saved_fallback, finish_source
 
 
 DEFAULT_SETTINGS = dict(prefix="", suffix="", remove_keywords="", replace_words="",
@@ -34,6 +35,9 @@ def failure_message(job):
 
 
 def select_output(conn, post, settings, config, digest, unavailable_message=None):
+    final = saved_fallback(conn, post["id"])
+    if final is not None:
+        return final
     original = post["text"] or ""
     try:
         body = process_body(original, settings)
@@ -93,8 +97,8 @@ def select_output(conn, post, settings, config, digest, unavailable_message=None
     return result
 
 
-def get_channel_outputs(channel_username, limit=None):
-    """Return original rows and their published version on one consistent read snapshot."""
+def get_channel_outputs(channel_username, limit=None, *, publish=False, connection=None):
+    """Select output atomically; only RSS publishing finalizes untranslated items."""
     config = None
     base_url = None
     unavailable_message = None
@@ -106,8 +110,12 @@ def get_channel_outputs(channel_username, limit=None):
     background = get_activity()
     if background.get("connection_error") or background["state"] == "paused":
         unavailable_message = background.get("connection_error") or background["message"]
-    with closing(get_connection()) as conn:
-        conn.execute("BEGIN")
+    with ExitStack() as stack:
+        conn = connection
+        if conn is None:
+            conn = stack.enter_context(closing(get_connection()))
+            stack.enter_context(conn)
+            conn.execute("BEGIN IMMEDIATE" if publish else "BEGIN")
         channel = conn.execute("SELECT * FROM channels WHERE lower(channel_username) = lower(?) ORDER BY id LIMIT 1",
                                (channel_username,)).fetchone()
         channel_id = channel["channel_id"] if channel else None
@@ -127,6 +135,11 @@ def get_channel_outputs(channel_username, limit=None):
         result = []
         for row in posts:
             post = dict(row)
-            post.update(select_output(conn, row, settings, config, digest, unavailable_message))
+            output = select_output(conn, row, settings, config, digest, unavailable_message)
+            if publish and settings["translation_enabled"] and output["translation_status"] in (
+                "pending", "running", "unavailable", "failed", "processing_error",
+            ):
+                output = finish_source(conn, row["id"], output)
+            post.update(output)
             result.append(post)
         return result

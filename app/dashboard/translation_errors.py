@@ -7,9 +7,12 @@ from app.llm.ollama_client import (
     OllamaModelNotFoundError, OllamaTimeoutError,
 )
 from app.translation.service import TranslationConfigurationError
+from app.llm.ollama_runtime import OllamaStartupError
 
 
 def translation_error_message(error: Exception) -> str:
+    if isinstance(error, OllamaStartupError):
+        return str(error)
     if isinstance(error, OllamaConnectionError):
         return "We couldn't reach Ollama. Open Ollama on the computer running this application, then try again."
     if isinstance(error, OllamaModelNotFoundError):

@@ -14,7 +14,8 @@ from dotenv import load_dotenv
 
 from app.database import database
 from app.dashboard.translation_errors import translation_error_message
-from app.llm.ollama_client import OllamaClient, OllamaConfig
+from app.llm.ollama_client import OllamaClient, OllamaConfig, OllamaModelNotFoundError
+from app.llm.ollama_runtime import OllamaRuntime
 from app.translation import queue, store
 from app.translation import activity
 from app.translation.identity import remember_model
@@ -96,7 +97,7 @@ async def database_call(function, *args):
 
 
 class TranslationWorker:
-    def __init__(self, *, client=None, translation_config=None, worker_config=None, memory_reader=None):
+    def __init__(self, *, client=None, translation_config=None, worker_config=None, memory_reader=None, runtime=None):
         self.client = client
         self.owns_client = client is None
         self.translation_config = translation_config
@@ -104,6 +105,7 @@ class TranslationWorker:
         self.lock = WorkerLock()
         self.task = None
         self.jobs = set()
+        self.job_tasks = {}
         self.digest = None
         self.error_message = None
         self.capacity = AutomaticCapacity()
@@ -111,6 +113,9 @@ class TranslationWorker:
         self.memory = MemoryReading("unknown")
         self.effective_limit = 0
         self.last_job_error = None
+        self.runtime = runtime or OllamaRuntime()
+        # Explicitly supplied clients (benchmarks/checks) never launch a real server.
+        self.allow_startup = client is None or runtime is not None
 
     async def start(self):
         # Configuration/network failures belong to the supervisor, not app startup.
@@ -152,8 +157,12 @@ class TranslationWorker:
                         local = urlparse(base_url).hostname in ("127.0.0.1", "localhost", "::1")
                         self.memory_reader = MemoryMonitor(local=local).sample
                     self.jobs = {task for task in self.jobs if not task.done()}
+                    self.job_tasks = {job_id: task for job_id, task in self.job_tasks.items() if task in self.jobs}
+                    await self._cancel_finalized_jobs()
                     await self._publish("checking")
-                    model = await self.client.require_model(self.translation_config.model)
+                    model = await self.runtime.require_model(
+                        self.client, self.translation_config.model, auto_start=self.allow_startup,
+                    )
                     digest = model.get("digest")
                     store._validate_digest(digest)
                     await self._remember_model(digest)
@@ -187,9 +196,13 @@ class TranslationWorker:
                         task = asyncio.create_task(self._run_job(job), name=f"translation-{job['id']}")
                         task.add_done_callback(self._observe_job)
                         self.jobs.add(task)
+                        self.job_tasks[job["id"]] = task
                     await self._publish("ready")
                 except Exception as error:
                     message = translation_error_message(error)
+                    if isinstance(error, OllamaModelNotFoundError):
+                        message = (f"The translation model '{self.translation_config.model}' isn't installed in Ollama. "
+                                   "Add it in Ollama; new posts can translate once it is available.")
                     if message != self.error_message:
                         logger.warning("Translation queue paused: %s (%s)", message, type(error).__name__)
                     self.error_message = message
@@ -203,6 +216,7 @@ class TranslationWorker:
                 task.cancel()
             await asyncio.gather(*self.jobs, return_exceptions=True)
             self.jobs.clear()
+            self.job_tasks.clear()
             try:
                 if self.lock.file is not None:
                     await database_call(queue.recover_running_jobs)
@@ -227,12 +241,12 @@ class TranslationWorker:
             message = "Background translation is stopped. RSS remains available."
         elif self.error_message:
             message = self.error_message
-        elif counts["failed"]:
-            message = self.last_job_error or "Some posts could not be translated. RSS remains available."
         elif running or counts["waiting"]:
             message = f"Translating {running} posts; {counts['waiting']} waiting."
+        elif counts["failed"]:
+            message = f"Ollama is ready. {counts['failed']} posts used source text after translation failed; they won't be retried."
         else:
-            message = "Translation is idle."
+            message = "Ollama is ready. Translation is idle." if state == "ready" else "Checking Ollama and the translation model."
         memory_note = self.memory.note
         if self.capacity.pressure == "resource_failure":
             memory_note = "New translations are paused briefly after a memory-related failure."
@@ -252,6 +266,15 @@ class TranslationWorker:
             except TranslationConfigurationError as error:
                 logger.warning("Cannot queue translation for post %s: %s", request["post_id"], error)
             await database_call(queue.acknowledge_request, request["post_id"], request["revision"])
+
+    async def _cancel_finalized_jobs(self):
+        finalized = await database_call(queue.finalized_jobs, list(self.job_tasks))
+        tasks = [self.job_tasks.pop(job_id) for job_id in finalized]
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
+            self.jobs.difference_update(tasks)
 
     async def _remember_model(self, digest):
         connection = getattr(self.client, "config", None) or OllamaConfig.from_env()

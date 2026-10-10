@@ -45,7 +45,7 @@ class AutomaticTranslationTest(unittest.IsolatedAsyncioTestCase):
         for channel in range(1, 11):
             upsert_channel(str(channel), str(channel), str(channel))
             update_channel_settings(str(channel), "", "", "", "", True, "en", "fr")
-            save_post(str(channel), str(channel), str(channel), 1, "The meeting starts at ten.", "text", None, "2026-10-09")
+            save_post(str(channel), str(channel), str(channel), 1, "The meeting starts at ten.", "text", None, "2026-10-09T10:00:00+00:00")
 
     async def asyncTearDown(self):
         await self.worker.stop()
@@ -88,6 +88,19 @@ class AutomaticTranslationTest(unittest.IsolatedAsyncioTestCase):
         await self.until(lambda: self.client.active == 0)
         with closing(database.get_connection()) as conn:
             self.assertEqual(conn.execute("SELECT COUNT(*) FROM translation_jobs WHERE status = 'pending'").fetchone()[0], 6)
+
+    async def test_publishing_source_cancels_model_requests_without_requeueing(self):
+        from app.rss.rss import generate_rss
+
+        await self.ramp_to_four()
+        with patch("app.translation.output.TranslationConfig.from_env", return_value=TranslationConfig()):
+            for channel in range(1, 11):
+                generate_rss(str(channel))
+        await self.until(lambda: self.client.active == 0)
+        await self.until(lambda: activity.get_activity().get("waiting") == 0 and activity.get_activity().get("running") == 0)
+        with closing(database.get_connection()) as conn:
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM rss_source_fallbacks").fetchone()[0], 10)
+            self.assertEqual(conn.execute("SELECT COUNT(*) FROM translation_jobs WHERE status IN ('pending', 'running')").fetchone()[0], 0)
 
     async def test_critical_memory_pauses_new_jobs_but_allows_running_jobs_to_finish(self):
         await self.ramp_to_four()
