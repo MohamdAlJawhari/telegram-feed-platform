@@ -4,6 +4,19 @@ body {
     color: #172033;
 }
 
+.translation-status { display: grid; gap: 4px; padding: 12px 22px 0; font-size: 0.82rem; }
+.translation-message { color: #69768a; overflow-wrap: anywhere; }
+.translation-label { color: #69768a; }
+.translation-status[data-status="completed"] .translation-label { color: #20744c; }
+.translation-status[data-status="pending"] .translation-label,
+.translation-status[data-status="running"] .translation-label { color: #996514; }
+.translation-status[data-status="failed"] .translation-label,
+.translation-status[data-status="unavailable"] .translation-label,
+.translation-status[data-status="processing_error"] .translation-label { color: #b33b36; }
+.translation-activity { margin-top: 22px; padding: 18px; border: 1px solid #dbe5f0; border-radius: 12px; background: #fff; }
+.translation-activity p { color: #69768a; overflow-wrap: anywhere; }
+#post-output-refresh-status { color: #996514; }
+
 .posts-page {
     width: min(940px, calc(100% - 40px));
     margin: 0 auto;

@@ -143,6 +143,22 @@ def create_database():
                 revision INTEGER NOT NULL DEFAULT 1
             )
         """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS translation_activity (
+                id INTEGER PRIMARY KEY CHECK(id = 1),
+                payload TEXT NOT NULL,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS translation_model_identity (
+                base_url TEXT NOT NULL,
+                model TEXT NOT NULL,
+                digest TEXT NOT NULL,
+                verified_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY(base_url, model)
+            )
+        """)
         conn.commit()
     except Exception:
         conn.rollback()

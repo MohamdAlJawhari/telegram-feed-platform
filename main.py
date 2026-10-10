@@ -84,7 +84,8 @@ def rss(channel_name: str):
 
     return Response(
         content=generate_rss(channel_name),
-        media_type="application/rss+xml"
+        media_type="application/rss+xml",
+        headers={"Cache-Control": "no-cache"},
     )
 
 

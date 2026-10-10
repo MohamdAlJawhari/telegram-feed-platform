@@ -292,7 +292,7 @@ when prompts/options/processing behavior change to invalidate older outputs.
 
 Previews continue to use unsaved input and do not persist it. Step 5 adds automatic
 queueing, worker startup, and recovery of unfinished running jobs using this storage
-API. Reading saved results in feeds/dashboard belongs to Step 6. Failures are
+API. Step 6 provides saved results in feeds/dashboard. Failures are
 retained without automatic retry; retry controls follow in Step 7.
 
 ## Dashboard workflow
@@ -337,7 +337,7 @@ of collected posts and RSS output still belongs to the later storage/worker/feed
 1. Enter a public Telegram channel username and select **Add Channel**.
 2. Keep the channel enabled to collect newly received messages.
 3. Use **View Posts** to inspect captured text and media.
-4. Switch between **Original** and **Processed** to compare the Telegram message with the RSS output.
+4. Switch between **Original** and **RSS output** to compare the Telegram message with the published version.
 5. Use **Settings** to configure text-processing rules.
 6. Copy the RSS or JSON API link from the channel card.
 
@@ -478,20 +478,45 @@ Telegram messages are queued automatically. Only message text and media captions
 are translated. The worker applies keyword removal, replacements, translation,
 then prefixes/suffixes. Original posts remain unchanged.
 
-The queue runs independently of Telegram and web requests. Its default limit is
-two concurrent jobs across channels, with preference for channels that have fewer
-jobs running. Configure the application in `.env`, then restart it:
+The queue runs independently of Telegram and web requests. Application concurrency
+is automatic: one slot per two active channels with translation enabled, rounded
+up, with an initial maximum of four. It also considers how many jobs are waiting
+or running. Channels with fewer running jobs receive preference. No slot setting
+is required from the user; legacy `TRANSLATION_CONCURRENCY` entries are ignored.
+The operational timing settings remain available in `.env`:
 
 ```dotenv
-TRANSLATION_CONCURRENCY=2
 TRANSLATION_POLL_SECONDS=2
 TRANSLATION_JOB_TIMEOUT=600
 ```
 
-`TRANSLATION_CONCURRENCY` accepts 1–8. The job timeout covers all chunks and result
+The job timeout covers all chunks and result
 validation; `OLLAMA_READ_TIMEOUT` still limits individual model requests. More
 concurrency requires more memory. The reusable Ollama client has no translation
 queue or scheduling logic.
+
+Under healthy memory readings the worker starts with one slot and raises its limit
+by at most one every two seconds, up to the channel-based target and four-slot
+maximum. Low memory reduces the limit; critical RAM pressure pauses new starts.
+Running jobs are allowed to finish when the limit falls. After memory pressure
+clears, the worker waits ten seconds before gradually recovering. A model error
+explicitly reporting insufficient memory pauses new starts for thirty seconds.
+This does not retry failed jobs automatically.
+
+RAM is monitored on Windows and Linux. If `nvidia-smi` is available, NVIDIA GPU
+memory is also sampled, at most once every ten seconds. GPU pressure reduces
+concurrency but does not pause all work: Ollama may have preallocated memory for
+an already loaded model. GPU readings cover the visible NVIDIA devices
+conservatively and are not proof of available capacity on the model's exact
+device. AMD/Apple GPU memory is not monitored here. If RAM monitoring fails or
+Ollama runs on another computer, the worker conservatively uses one slot.
+Memory readings are precautions, not an out-of-memory guarantee, and reducing
+application concurrency does not release memory preallocated by Ollama.
+
+The dashboard's **Background translation** panel refreshes automatically with
+running/waiting counts, friendly failures and memory warnings. It reads a shared
+SQLite worker heartbeat, so another web process can display the active manager's
+status. A heartbeat older than thirty seconds is shown as unavailable.
 
 Ollama must also support parallel inference. On Windows, quit Ollama from the
 system tray, open **Edit environment variables for your account**, add the user
@@ -532,7 +557,150 @@ and save their settings. Stored posts will be queued; new messages also queue as
 they arrive. Quit Ollama and receive another message, then reopen Ollama to verify
 that queued work resumes. Saved results can be inspected in `translation_jobs`
 and outstanding queue intents in `translation_requests` using a SQLite viewer.
-The dashboard and RSS use saved translated output starting in step 6.
+The dashboard and RSS use saved translated output as described below (step 6).
+
+Check automatic concurrency and memory backoff without stressing your computer:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.check_automatic
+.\.venv\Scripts\python.exe -m app.translation.check_automatic --live
+```
+
+The first command simulates a healthy-to-critical-to-healthy memory transition,
+verifies that running jobs finish while new jobs wait, and then verifies recovery.
+The second translates ten temporary posts using real Ollama and real memory
+readings. Both use temporary databases; expect `Automatic concurrency check passed`.
+No manual concurrency change is necessary. Restart the application once to load
+the new code, then watch the dashboard panel while saving channel settings or
+receiving new posts. Enabling/disabling channels adjusts the worker's target
+without restarting; the initial ceiling remains four. Do not create actual memory
+pressure to test backoff—the simulated check and tests cover it safely.
+
+### Saved translation delivery (implementation step 6)
+
+RSS delivery never waits for translation. The feed and channel posts page share
+the same output selection:
+
+| State | Published RSS content |
+| --- | --- |
+| Completed and matches the current text/settings/model recipe | Saved translated body, then prefix/suffix |
+| Pending or running | Processed source body, then prefix/suffix |
+| Failed, unavailable, or not yet queued | Processed source body, then prefix/suffix |
+| Translation disabled, same languages, or empty news body | Normally processed source output |
+
+Both headline and body use the selected news language. Headlines exclude the
+prefix/suffix. Media enclosures, Telegram links, publication dates and item GUIDs
+remain intact. Captions are handled as text; images and audio are not translated.
+Warnings appear in the dashboard instead of being inserted into the news body.
+An invalid replacement rule also falls back to source text with affixes, with a
+dashboard processing warning, so it does not prevent RSS delivery.
+
+RSS and dashboard reads perform no Ollama calls and never enqueue or generate
+work. The worker records the last verified model digest in SQLite, keyed by the
+configured Ollama address and model. A matching completed translation remains
+usable while Ollama is stopped or its model is missing; new or unfinished posts
+still publish source text. Model changes are detected when the worker next checks
+Ollama, not during a feed request. Switching the configured Ollama address/model,
+changing rules/languages/affixes/original text, or changing the processing recipe
+prevents outdated saved output from being served.
+
+On **View Posts**, **Original** shows the untouched Telegram text. **RSS output**
+shows what the feed would publish using the current saved settings, including
+translations or source fallback. Per-post labels and friendly warnings explain
+the selection. Output refreshes every five seconds without changing the selected
+view. It also works for older posts outside the RSS feed's latest twenty items.
+RSS descriptions encode markup as literal text, and characters XML cannot
+represent are removed at serialization. The feed language is set only when all
+selected news bodies have the same known language; mixed fallback/translated
+feeds do not incorrectly claim a single language.
+
+Translation becoming ready updates the existing RSS item without changing its
+GUID. Some readers/automations may not revisit an item already consumed in its
+source language; immediate delivery therefore cannot guarantee that every
+consumer receives the later translation.
+
+Run the temporary-data delivery checks:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.check_delivery
+.\.venv\Scripts\python.exe -m app.translation.check_delivery --live
+.\.venv\Scripts\python.exe -m unittest discover -s tests -q
+```
+
+Expect `Delivery check passed`. The offline check uses a simulated model; the live
+check uses your installed model for the first result. Both verify source delivery
+before completion, translated title/body, stable GUID, offline cached output,
+source fallback during a simulated outage/failure, stale-output rejection and
+unchanged originals. They use temporary databases and never stop your real
+Ollama service or change your project's posts/settings.
+
+For a manual application test, restart the app, enable translation in a channel,
+then open **View Posts → RSS output** and `/rss/<channel_username>`. Receive a
+new post: source text should appear immediately, then the translated output should
+replace it when ready. Quit Ollama, receive another post, and check that RSS still
+includes the source text while the dashboard shows a warning. Reopen Ollama to
+resume pending work. Completed cached translations remain readable during the
+outage. Finally, change a prefix or target language: stale translations should
+immediately fall back to current source processing until a fresh job completes.
+
+### Benchmark translation capacity
+
+Use the benchmark to measure a burst from ten channels (one post each) through the
+same background worker used by the application. It compares application limits
+of 1, 2 and 4 by default, and uses a fresh temporary database for every round.
+No real channels, posts or settings are read or changed. It warms the model once
+before timing, so the results describe operation with a loaded model rather than
+the first cold start. The report shows warm-up time separately.
+
+With Ollama running, preferably while no other applications are requesting
+generation, run:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.benchmark --output translation_benchmark_results.json
+```
+
+The console reports completed/failed/unfinished posts, total duration, average and
+maximum application queue wait, time until the last successful translation is
+ready, and successful posts per minute. Queue wait is measured before the worker
+starts a job; its translation duration also includes any queue inside Ollama.
+The configured worker poll interval is retained to measure actual scheduling
+delays. Progress prints every ten seconds while a round is running.
+
+The built-in texts are ten invented English news posts of varying lengths, with
+French as the target. For a more reliable comparison, use three repeats (the
+limit order reverses on alternate repeats). You can also supply exactly ten real
+news texts as a UTF-8 JSON array of strings and select the language pair:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.benchmark --repeats 3 --output translation_benchmark_results.json
+.\.venv\Scripts\python.exe -m app.translation.benchmark --file my_news.json --source ar --target en --limits 1 2 4 --output translation_benchmark_results.json
+```
+
+The optional JSON report includes the source texts and generated translations so
+you can inspect accuracy separately. Timing alone does not measure output quality.
+Failed or unfinished rounds do not receive a successful-throughput figure. Each
+round has a default 1800-second deadline, configurable with `--round-timeout`;
+individual jobs still use `TRANSLATION_JOB_TIMEOUT`.
+
+The benchmark changes application concurrency only. It does not set, restart or
+verify Ollama's `OLLAMA_NUM_PARALLEL`. Testing application limits above the
+server's capacity measures extra queueing, and does not prove that those requests
+ran in parallel inside the model. If you know the server capacity, use
+`--server-parallel 2` to record that declared value in the report. To compare
+different Ollama server capacities, configure and restart Ollama between separate
+benchmark invocations and save each report under a different name. More capacity
+requires sufficient memory; see the
+[Ollama concurrency documentation](https://docs.ollama.com/faq#how-does-ollama-handle-concurrent-requests).
+
+For an offline check of the measurement/reporting logic:
+
+```powershell
+.\.venv\Scripts\python.exe -m app.translation.benchmark --simulate
+```
+
+Its output is clearly marked **SIMULATED** and cannot be used to choose a hardware
+limit. The benchmark uses explicit fixed limits for comparison and does not change
+the application's automatic scheduling policy.
 
 ### Missing Telegram credentials
 

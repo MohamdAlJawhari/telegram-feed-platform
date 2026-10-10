@@ -5,12 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@{{ channel_username }} · Posts</title>
-    <link rel="stylesheet" href="/static/css/common.css">
-    <link rel="stylesheet" href="/static/css/channel_posts.css">
+    <link rel="stylesheet" href="/static/css/common.css?v={{ asset_versions['css/common.css'] }}">
+    <link rel="stylesheet" href="/static/css/channel_posts.css?v={{ asset_versions['css/channel_posts.css'] }}">
 </head>
 
 <body>
-    <main class="posts-page" data-channel-username="{{ channel_username }}">
+    <main class="posts-page" data-channel-username="{{ channel_username }}"
+          data-output-url="{{ request.url_for('channel_output', channel_username=channel_username).path }}">
         <a href="/dashboard" class="back-link"><span aria-hidden="true">←</span> Back to Dashboard</a>
 
         <header class="posts-header">
@@ -33,14 +34,14 @@
                 <button class="content-mode-button is-selected" type="button" data-content-mode="original"
                     aria-pressed="true">Original</button>
                 <button class="content-mode-button" type="button" data-content-mode="processed"
-                    aria-pressed="false">Processed</button>
+                    aria-pressed="false">RSS output</button>
             </div>
         </div>
         {% endif %}
 
         <section class="posts-list" aria-label="Channel posts">
             {% for post in posts %}
-            <article class="post-card">
+            <article class="post-card" data-post-id="{{ post['id'] }}">
                 <header class="post-header">
                     <div class="post-type">
                         <span class="post-type-icon" aria-hidden="true">
@@ -62,7 +63,12 @@
                     <time class="post-date" datetime="{{ post['date'] }}">{{ post["date"] }}</time>
                 </header>
 
-                <div class="post-content" data-message-id="{{ post['message_id'] }}" dir="auto">{{ post["text"] or "(No caption)" }}</div>
+                <div class="translation-status" data-status="{{ post['translation_status'] }}">
+                    <strong class="translation-label">{{ post['translation_label'] }}</strong>
+                    <span class="translation-message">{{ post['translation_message'] }}</span>
+                </div>
+                <div class="post-content post-original" dir="auto">{{ post["text"] or "(No caption)" }}</div>
+                <div class="post-content post-published" dir="auto" hidden>{{ post["output_text"] or "(No text)" }}</div>
 
                 {% if post["media_url"] %}
                 <div class="post-media">
@@ -98,7 +104,15 @@
             </div>
             {% endfor %}
         </section>
+        <p id="post-output-refresh-status" role="status" aria-live="polite"></p>
+        <section class="translation-activity" data-activity-url="/dashboard/translation-activity"
+                 aria-label="Background translation across all channels">
+            <strong>Background translation across all channels</strong>
+            <p id="translation-activity-status" role="status" aria-live="polite">Checking translation activity…</p>
+            <p id="translation-memory-note"></p>
+        </section>
     </main>
-    <script src="/static/js/channel_posts.js"></script>
+    <script src="/static/js/channel_posts.js?v={{ asset_versions['js/channel_posts.js'] }}"></script>
+    <script src="/static/js/translation_activity.js?v={{ asset_versions['js/translation_activity.js'] }}"></script>
 </body>
 </html>

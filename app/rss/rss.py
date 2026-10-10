@@ -1,88 +1,42 @@
 import mimetypes
+import os
+import re
+from html import escape
+from urllib.parse import quote
+
+from feedgen.feed import FeedGenerator
 
 from app.media.media_service import build_public_media_url
-from feedgen.feed import FeedGenerator
-from app.database.models import get_posts_by_channel, get_channel_settings
-from app.processing.processor import process_text, extract_title
+from app.processing.processor import extract_title
+from app.translation.output import get_channel_outputs
+
+
+def xml_text(text):
+    # XML 1.0 cannot represent these characters, even as escaped entities.
+    return re.sub(r"[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff\ufffe\uffff]", "", text)
+
 
 def generate_rss(channel_name):
-
+    posts = get_channel_outputs(channel_name, limit=20)
     fg = FeedGenerator()
-
-    fg.title(channel_name)
-    fg.description(f"RSS feed for Telegram channel '{channel_name}'")
-    fg.link(
-        href=f"http://localhost:8000/rss/{channel_name}",
-        rel="self"
-    )
-    fg.language("en")
-
-    # posts = list(get_posts_for_rss())
-    posts = list(get_posts_by_channel(channel_name))
-
-    print("Requested channel:", channel_name)
-    print("Posts found:", len(posts))
-    print(posts)
-
-    posts.reverse()
-
-    for (
-        channel_id,
-        channel_title,
-        channel_username,
-        message_id,
-        text,
-        message_type,
-        media_path,
-        date,
-    ) in posts:
-        
+    fg.title(xml_text(channel_name))
+    fg.description(f"RSS feed for Telegram channel '{xml_text(channel_name)}'")
+    base_url = (os.getenv("BASE_URL") or "http://localhost:8000").rstrip("/")
+    fg.link(href=f"{base_url}/rss/{quote(channel_name, safe='')}", rel="self")
+    languages = {post["output_language"] for post in posts}
+    if len(languages) == 1 and None not in languages:
+        fg.language(next(iter(languages)))
+    for post in reversed(posts):
         fe = fg.add_entry()
-        settings = get_channel_settings(channel_id)
-
-        processed_text = process_text(
-            text=text or "",
-            settings=settings,
-        )
-
-        # ---------- Title ----------
-        title = extract_title(text)
-
-        if len(title) > 80:
-            title = title[:80] + "..."
-
-        fe.title(title)
-
-        # ---------- Description ----------
-        fe.description(processed_text)
-
-        # ---------- GUID ----------
-        fe.guid(
-            f"{channel_id}-{message_id}",
-            permalink=False
-        )
-
-        # ---------- Publish Date ----------
-        fe.pubDate(date)
-
-        # ---------- Telegram Link ----------
-        if channel_username:
-            fe.link(
-                href=f"https://t.me/{channel_username}/{message_id}"
-            )
-
-        if media_path:
-            media_url = build_public_media_url(media_path)
-
-            mime_type = (
-                mimetypes.guess_type(media_path)[0]
-                or "application/octet-stream"
-            )
-
-            fe.enclosure(
-                media_url,
-                0,
-                mime_type,
-            )
-
+        title = xml_text(extract_title(post["body_text"]))
+        fe.title(title[:80] + "..." if len(title) > 80 else title)
+        # Keep source/model markup literal in readers that interpret HTML descriptions.
+        fe.description(escape(xml_text(post["output_text"]), quote=False))
+        fe.guid(f"{post['channel_id']}-{post['message_id']}", permalink=False)
+        fe.pubDate(post["date"])
+        if post["channel_username"]:
+            fe.link(href=f"https://t.me/{post['channel_username']}/{post['message_id']}")
+        if post["media_path"]:
+            fe.enclosure(build_public_media_url(post["media_path"]), 0,
+                         mimetypes.guess_type(post["media_path"])[0] or "application/octet-stream")
     return fg.rss_str(pretty=True)

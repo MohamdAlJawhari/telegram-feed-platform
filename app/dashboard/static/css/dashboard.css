@@ -4,6 +4,21 @@ body {
     color: #172033;
 }
 
+.translation-activity {
+    margin: 22px 0;
+    padding: 20px;
+    border: 1px solid #dbe5f0;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.translation-activity h2 { margin: 0 0 6px; font-size: 1.1rem; }
+.translation-activity p { margin: 6px 0 0; overflow-wrap: anywhere; }
+.translation-activity > div > p,
+.translation-memory-note { color: #69768a; font-size: 0.9rem; }
+.translation-activity[data-state="paused"],
+.translation-activity[data-memory-state="critical"] { border-color: #d89a55; }
+
 .dashboard-page {
     width: min(1440px, calc(100% - 48px));
     margin: 0 auto;

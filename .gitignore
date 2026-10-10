@@ -54,3 +54,4 @@ Desktop.ini
 
 URLs.txt
 *.translation.lock
+translation_benchmark_results*.json

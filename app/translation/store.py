@@ -150,7 +150,8 @@ def get_translation_job(job_id: int):
         return dict(job) if job else None
 
 
-def claim_translation(config: TranslationConfig, model_digest: str, *, post_id: int | None = None):
+def claim_translation(config: TranslationConfig, model_digest: str, *, post_id: int | None = None,
+                      active_only: bool = False):
     """Atomically claim one current pending job; simultaneous callers get distinct jobs."""
     _validate_digest(model_digest)
     with closing(get_connection()) as connection, connection:
@@ -159,6 +160,12 @@ def claim_translation(config: TranslationConfig, model_digest: str, *, post_id: 
             SELECT j.* FROM translation_jobs j JOIN post_translations p ON p.current_job_id = j.id
             JOIN posts source ON source.id = j.post_id
             WHERE j.status = 'pending' AND (? IS NULL OR j.post_id = ?)
+              AND (? = 0 OR EXISTS (
+                  SELECT 1 FROM channels c WHERE c.enabled = 1 AND (
+                      c.channel_id = source.channel_id OR
+                      (source.channel_id IS NULL AND lower(c.channel_username) = lower(source.channel_username))
+                  )
+              ))
             ORDER BY (
                 SELECT COUNT(*) FROM translation_jobs active JOIN posts other ON other.id = active.post_id
                 WHERE active.status = 'running' AND (
@@ -167,7 +174,7 @@ def claim_translation(config: TranslationConfig, model_digest: str, *, post_id: 
                      AND lower(other.channel_username) = lower(source.channel_username))
                 )
             ), j.id
-        """, (post_id, post_id))
+        """, (post_id, post_id, int(active_only)))
         for job in candidates:
             if not _is_current(connection, job, config, model_digest):
                 _supersede(connection, job["id"])

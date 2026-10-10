@@ -62,6 +62,16 @@
             </div>
         </section>
 
+        <section class="translation-activity" aria-labelledby="translation-activity-heading"
+                 data-activity-url="/dashboard/translation-activity">
+            <div>
+                <h2 id="translation-activity-heading">Background translation</h2>
+                <p>Concurrency adjusts automatically to your active channels and available memory.</p>
+            </div>
+            <p id="translation-activity-status" role="status" aria-live="polite">Checking translation activity…</p>
+            <p id="translation-memory-note" class="translation-memory-note"></p>
+        </section>
+
         {% if success %}
         <div class="notice notice-success" role="status">✓ Channel added successfully.</div>
         {% endif %}
@@ -144,5 +154,6 @@
 
     <div id="copy-toast" class="copy-toast" role="status" aria-live="polite"></div>
     <script src="/static/js/dashboard.js"></script>
+    <script src="/static/js/translation_activity.js"></script>
 </body>
 </html>
