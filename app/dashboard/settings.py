@@ -4,6 +4,8 @@ import asyncio
 import logging
 import re
 import sqlite3
+from hashlib import sha256
+from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -31,13 +33,17 @@ def require_channel(channel_id):
 
 
 def render_settings(request, channel, settings, *, error=None, saved=False, status_code=200):
+    static = Path(__file__).parent / "static"
+    assets = ("css/common.css", "css/channel_settings.css", "js/channel_settings.js", "js/translation_settings.js")
     return templates.TemplateResponse(
         request=request, name="channel_settings.html",
         context={
             "channel_id": channel["channel_id"], "channel": channel,
             "settings": settings, "languages": sorted(LANGUAGES.items(), key=lambda item: item[1]),
             "language_codes": LANGUAGES, "error": error, "saved": saved,
+            "asset_versions": {name: sha256((static / name).read_bytes()).hexdigest()[:16] for name in assets},
         }, status_code=status_code,
+        headers={"Cache-Control": "no-cache"},
     )
 
 

@@ -1,21 +1,27 @@
+{% from "post_icons.html" import icon, symbols %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Channel Settings</title>
-    <link rel="stylesheet" href="/static/css/common.css">
-    <link rel="stylesheet" href="/static/css/channel_settings.css">
+    <link rel="stylesheet" href="/static/css/common.css?v={{ asset_versions['css/common.css'] }}">
+    <link rel="stylesheet" href="/static/css/channel_settings.css?v={{ asset_versions['css/channel_settings.css'] }}">
 </head>
 <body>
+    {{ symbols() }}
     <main class="settings-page">
         <a class="back-link" href="/dashboard"><span aria-hidden="true">←</span> Back to Dashboard</a>
         <header class="page-header">
-            <h1>Channel Settings</h1>
-            <p>Settings for:</p>
-            <div class="channel-name">@{{ channel["channel_username"] }}</div>
+            <div class="settings-channel-avatar" aria-hidden="true">{{ channel["channel_username"][:1] | upper }}</div>
+            <div class="settings-channel-heading">
+                <span class="settings-eyebrow">Channel settings</span>
+                <h1>@{{ channel["channel_username"] }}</h1>
+                <p>Manage your news text and translation for RSS.</p>
+            </div>
         </header>
 
+        <div class="settings-content">
         {% if error %}<p class="settings-notice error-notice" role="alert">{{ error }}</p>{% endif %}
         {% if saved %}<p class="settings-notice success-notice" role="status">Settings saved.</p>{% endif %}
 
@@ -25,9 +31,9 @@
                   data-status-url="/dashboard/settings/{{ channel_id }}/translation-status">
                 <section class="settings-card text-settings" aria-label="Message text settings">
                     <label for="prefix">Prefix</label>
-                    <textarea id="prefix" name="prefix" rows="2">{{ settings["prefix"] }}</textarea>
+                    <textarea id="prefix" name="prefix" rows="2" dir="auto">{{ settings["prefix"] }}</textarea>
                     <label for="suffix">Suffix</label>
-                    <textarea id="suffix" name="suffix" rows="2">{{ settings["suffix"] }}</textarea>
+                    <textarea id="suffix" name="suffix" rows="2" dir="auto">{{ settings["suffix"] }}</textarea>
                 </section>
 
                 <section class="settings-card rule-card" aria-labelledby="keywords-heading">
@@ -37,7 +43,7 @@
                     </div>
                     <textarea id="remove-keywords-data" name="remove_keywords" hidden>{{ settings["remove_keywords"] }}</textarea>
                     <div class="keyword-entry">
-                        <input id="keyword-input" type="text" placeholder="Add a keyword" autocomplete="off">
+                        <input id="keyword-input" type="text" aria-label="Keyword to remove" placeholder="Add a keyword" autocomplete="off" dir="auto">
                         <button id="add-keyword" class="add-button" type="button"><span aria-hidden="true">＋</span> Add</button>
                     </div>
                     <div id="keyword-chips" class="keyword-chips" aria-live="polite"></div>
@@ -50,21 +56,24 @@
                     </div>
                     <textarea id="replace-words-data" name="replace_words" hidden>{{ settings["replace_words"] }}</textarea>
                     <div class="replacement-entry">
-                        <input id="old-word-input" type="text" placeholder="Enter word or phrase" autocomplete="off">
+                        <input id="old-word-input" type="text" aria-label="Word or phrase to replace" placeholder="Enter word or phrase" autocomplete="off" dir="auto">
                         <span class="entry-arrow" aria-hidden="true">→</span>
-                        <input id="new-word-input" type="text" placeholder="Replacement" autocomplete="off">
+                        <input id="new-word-input" type="text" aria-label="Replacement text" placeholder="Replacement" autocomplete="off" dir="auto">
                         <button id="add-replacement" class="add-button" type="button"><span aria-hidden="true">＋</span> Add</button>
                     </div>
                     <div id="replacement-list" class="replacement-list" aria-live="polite"></div>
                 </section>
 
                 <section class="settings-card translation-card" aria-labelledby="translation-heading">
-                    <h2 id="translation-heading">Translation</h2>
-                    <label class="translation-toggle" for="translation-enabled">
-                        <input id="translation-enabled" name="translation_enabled" type="checkbox" value="true"
-                               {% if settings.translation_enabled %}checked{% endif %}>
-                        Enable translation for this channel
-                    </label>
+                    <div class="translation-heading-row">
+                        <h2 id="translation-heading">Translation</h2>
+                        <label class="translation-toggle" for="translation-enabled">
+                            <span id="translation-toggle-label">{{ 'Enabled' if settings.translation_enabled else 'Disabled' }}</span>
+                            <input id="translation-enabled" name="translation_enabled" type="checkbox" value="true" role="switch"
+                                   aria-label="Enable translation for this channel" {% if settings.translation_enabled %}checked{% endif %}>
+                            <span class="switch-track" aria-hidden="true"></span>
+                        </label>
+                    </div>
                     <div class="language-pair">
                         <div>
                             <label for="source-language">Source language</label>
@@ -77,6 +86,7 @@
                                 {% endfor %}
                             </select>
                         </div>
+                        <span class="language-arrow" aria-hidden="true">→</span>
                         <div>
                             <label for="target-language">Target language</label>
                             <select id="target-language" name="target_language">
@@ -89,12 +99,26 @@
                             </select>
                         </div>
                     </div>
-                    <p class="field-help">Prefixes and suffixes are added after translation and stay as written. Write them in the language you want readers to see.</p>
-                    <p class="field-help">Saved settings queue unpublished posts and new messages for background translation. RSS uses a translation when ready; otherwise it publishes source text immediately. Source fallback and failed posts are final and won't be translated later.</p>
-                    <div class="connection-row">
-                        <p id="translation-connection-status" role="status" aria-live="polite">Checking Ollama…</p>
-                        <button id="check-translation-connection" class="add-button" type="button">Check connection</button>
+                    <div class="connection-card" data-state="checking">
+                        <div class="connection-row">
+                            <p id="translation-connection-status" role="status" aria-live="polite">{{ icon('clock', 'connection-icon ui-icon') }} <span id="translation-connection-label">Checking connection…</span></p>
+                            <button id="check-translation-connection" class="connection-button" type="button">{{ icon('refresh') }} Check connection</button>
+                        </div>
+                        <details class="connection-details">
+                            <summary>Connection details {{ icon('chevron') }}</summary>
+                            <p id="translation-connection-details">Checking the translation service.</p>
+                        </details>
                     </div>
+                    <p class="field-help">RSS uses the translation when ready; otherwise, it publishes the original language.</p>
+                    <details class="translation-help">
+                        <summary>{{ icon('help') }} How it works</summary>
+                        <p class="field-help">Prefixes and suffixes are added after translation and stay as written. Write them in the language you want readers to see.</p>
+                        <p class="field-help">Saved settings queue unpublished posts and new messages for background translation. RSS publishes source text immediately if translation is not ready. Source fallback and failed posts are final and won't be translated later.</p>
+                    </details>
+                    <details class="translation-test">
+                        <summary>{{ icon('flask') }} <span><strong>Test translation</strong><small>Preview your current settings without saving.</small></span>{{ icon('chevron', 'test-chevron ui-icon') }}</summary>
+                        <div class="translation-test-content">
+                    <p class="field-help">Turn translation on and choose two different languages to translate. The first request may take longer while the service gets ready. If a preview fails, your entries stay in place.</p>
                     <label for="translation-preview-text">Sample news text</label>
                     <textarea id="translation-preview-text" rows="4" maxlength="10000" dir="auto"
                               placeholder="Paste a news post to preview with the settings above."></textarea>
@@ -106,9 +130,11 @@
                         <h3>Final output with prefix and suffix</h3>
                         <pre id="translation-translated-output" dir="auto"></pre>
                     </div>
+                        </div>
+                    </details>
                 </section>
 
-                <button class="save-button" type="submit"><span aria-hidden="true">💾</span> Save Settings</button>
+                <button class="save-button" type="submit">{{ icon('save') }} Save settings</button>
             </form>
 
             <aside class="help-card" aria-labelledby="help-heading">
@@ -131,16 +157,12 @@
                     <h3>Processing order</h3>
                     <ol><li>Remove keywords</li><li>Replace words</li><li>Translate, when enabled</li><li>Add prefix and suffix</li></ol>
                 </section>
-                <section>
-                    <h3>Translation preview</h3>
-                    <p>Preview uses the current form values without saving them. Turn translation on and choose two different languages to translate.</p>
-                    <p>The first request may take longer while the model loads. If a preview fails, your entries stay in place.</p>
-                </section>
             </aside>
+        </div>
         </div>
     </main>
 
-    <script src="/static/js/channel_settings.js"></script>
-    <script src="/static/js/translation_settings.js"></script>
+    <script src="/static/js/channel_settings.js?v={{ asset_versions['js/channel_settings.js'] }}"></script>
+    <script src="/static/js/translation_settings.js?v={{ asset_versions['js/translation_settings.js'] }}"></script>
 </body>
 </html>

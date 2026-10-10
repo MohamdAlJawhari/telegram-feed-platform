@@ -30,6 +30,7 @@
             chip.className = "keyword-chip";
             const label = document.createElement("span");
             label.textContent = keyword;
+            label.dir = "auto";
             chip.append(label, removeButton(`Remove ${keyword}`, () => {
                 keywords.splice(index, 1);
                 renderKeywords();
@@ -56,10 +57,12 @@
             const arrow = document.createElement("span");
             const newWord = document.createElement("span");
             oldWord.textContent = rule.oldWord;
+            oldWord.dir = "auto";
             arrow.className = "rule-arrow";
             arrow.textContent = "→";
             arrow.setAttribute("aria-hidden", "true");
             newWord.textContent = rule.newWord;
+            newWord.dir = "auto";
             row.append(oldWord, arrow, newWord, removeButton(`Remove ${rule.oldWord} replacement`, () => {
                 replacements.splice(index, 1);
                 renderReplacements();
