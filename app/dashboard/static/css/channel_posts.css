@@ -3,6 +3,7 @@ body {
     background: #f4f7fb;
     color: #172033;
 }
+.channel-profile-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .translation-activity { margin-top: 22px; padding: 18px; border: 1px solid #dbe5f0; border-radius: 12px; background: #fff; }
 .translation-activity p { color: #69768a; overflow-wrap: anywhere; }

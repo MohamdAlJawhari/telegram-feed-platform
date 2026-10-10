@@ -1,4 +1,5 @@
 body { margin: 16px; }
+.channel-profile-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 
 .settings-page {
     max-width: 1200px;

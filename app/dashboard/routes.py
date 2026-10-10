@@ -18,6 +18,7 @@ from app.database.models import (
     get_translation_channels,
 )
 from app.translation.languages import LANGUAGES
+from app.telegram.channel_photos import with_channel_photos
 
 templates = Jinja2Templates(
     directory="app/dashboard/templates"
@@ -48,12 +49,12 @@ def dashboard(
     success: int = 0,
     error: int = 0,
 ):
-    channels = get_all_channels()
+    channels = with_channel_photos(get_all_channels())
     statistics = get_dashboard_statistics()
-    translation_channels = get_translation_channels()
+    translation_channels = with_channel_photos(get_translation_channels())
     statistics["translation_channels"] = len(translation_channels)
     static = Path(__file__).parent / "static"
-    assets = ("css/common.css", "css/dashboard.css", "js/dashboard.js", "js/translation_activity.js")
+    assets = ("css/common.css", "css/dashboard.css", "js/channel_avatars.js", "js/dashboard.js", "js/translation_activity.js")
     return templates.TemplateResponse(
         request=request,
         name="dashboard.html",
@@ -121,4 +122,4 @@ def delete_channel_from_dashboard(channel_id: str):
 @router.get("/telegram-feed/channel-summary")
 def channel_summary():
 
-    return get_channel_summaries()
+    return with_channel_photos(get_channel_summaries())

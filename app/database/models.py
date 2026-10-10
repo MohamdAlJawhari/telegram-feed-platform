@@ -255,6 +255,15 @@ def get_enabled_channels():
 
     return rows
 
+def get_channel_by_username(username):
+    conn = get_connection()
+    try:
+        row = conn.execute("SELECT * FROM channels WHERE channel_username = ? COLLATE NOCASE", (username,)).fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
 def get_all_channels():
 
     conn = get_connection()

@@ -646,6 +646,16 @@ posts stay unchanged when settings change.
 
 ### Post views and the demo channel
 
+Channel cards, the translation-enabled channel panel, and the Posts and Settings
+headers show Telegram profile photos when available. The existing Telegram listener refreshes small photos in
+the background, checks for newly added channels every minute, and refreshes each
+channel daily. Photos are cached in `data/media/channel-profiles/`; dashboard
+requests only read that cache and never wait for Telegram. Missing or broken
+images use the channel's initial. Refresh failures retain the previous photo and
+back off for five minutes; Telegram rate limits pause photo requests. Profile
+photos do not affect ingestion, translation or RSS delivery. Restart the app
+after installing this change to start the background refresher.
+
 The **Channel posts** header includes **Content view** (Original / RSS output) and
 **Display style** (Stacked / Cards). Stacked shows one post below another; Cards
 shows two columns on larger screens and one on phones. The display style is

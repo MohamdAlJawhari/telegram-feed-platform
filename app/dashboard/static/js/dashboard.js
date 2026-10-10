@@ -115,6 +115,7 @@
             if (refreshId !== latestPostsRefreshId) return;
 
             channels.forEach(channel => {
+                window.ChannelAvatars.update(channel);
                 const element = document.getElementById(`latest-${channel.channel_username}`);
                 if (element) {
                     element.textContent = channel.latest_post || (channel.latest_post_date ? "Post without text" : "No posts yet");

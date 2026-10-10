@@ -266,6 +266,7 @@ body {
 .channel-identity { min-width: 0; gap: 12px; }
 .channel-identity > div { min-width: 0; }
 .channel-avatar { display: grid; width: 46px; height: 46px; flex: 0 0 46px; place-items: center; border-radius: 14px; background: linear-gradient(135deg, #dceeff, #eef5ff); color: #1769d2; font-size: 1.15rem; font-weight: 800; }
+.channel-profile-photo { width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .channel-identity h3 { margin: 0; overflow: hidden; font-size: 1.08rem; text-overflow: ellipsis; white-space: nowrap; }
 .channel-identity p { margin: 3px 0 0; overflow: hidden; color: #758196; font-size: 0.88rem; text-overflow: ellipsis; white-space: nowrap; }
 

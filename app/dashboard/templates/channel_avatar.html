@@ -1,0 +1,6 @@
+{% macro avatar(channel, class='channel-avatar', initial=none) -%}
+<span class="{{ class }}" data-avatar-channel="{{ channel['channel_id'] }}" aria-hidden="true">
+    <span class="avatar-initial">{{ (initial if initial is not none else channel['channel_title'][:1]) | upper }}</span>
+    {% if channel['avatar_url'] %}<img class="channel-profile-photo" src="{{ channel['avatar_url'] }}" alt="" decoding="async" hidden>{% endif %}
+</span>
+{%- endmacro %}

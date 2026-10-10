@@ -1,11 +1,13 @@
 import os
+import asyncio
 from pathlib import Path
 
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
 
-from app.database.models import upsert_channel, save_post, is_channel_enabled
+from app.database.models import upsert_channel, save_post, is_channel_enabled, get_all_channels
 from app.media.media_service import download_media
+from app.telegram.channel_photos import ChannelPhotoCache
 
 # --------------------------------------------------
 # Configuration
@@ -160,10 +162,15 @@ async def test_connection(
 async def start_telegram() -> None:
     """Keep listening for new Telegram messages."""
 
+    photo_task = None
     try:
         await client.start()
+        photo_task = asyncio.create_task(ChannelPhotoCache(client, get_all_channels).run())
         print("✅ Telegram connected.")
         print("Waiting for new messages...")
         await client.run_until_disconnected()
     finally:
+        if photo_task:
+            photo_task.cancel()
+            await asyncio.gather(photo_task, return_exceptions=True)
         await client.disconnect()
