@@ -18,7 +18,9 @@ class TranslationLifecycleTest(unittest.TestCase):
     def test_app_starts_and_stops_worker_and_telegram_tasks(self):
         disconnected = []
 
-        async def telegram():
+        async def telegram(on_connected=None):
+            if on_connected:
+                on_connected()
             try:
                 await asyncio.Event().wait()
             finally:
@@ -27,7 +29,7 @@ class TranslationLifecycleTest(unittest.TestCase):
         fake_telegram = types.ModuleType("app.telegram.telegram_client")
         fake_telegram.start_telegram = telegram
         # Dashboard/channel imports also use this module for their shared client.
-        fake_telegram.client = object()
+        fake_telegram.client = types.SimpleNamespace(is_connected=lambda: True)
         with tempfile.TemporaryDirectory() as directory:
             with patch.object(database, "DATABASE_NAME", str(Path(directory) / "test.db")):
                 with patch.dict(sys.modules, {"app.telegram.telegram_client": fake_telegram}):

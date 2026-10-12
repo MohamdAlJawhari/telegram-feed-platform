@@ -1,5 +1,4 @@
 # http://127.0.0.1:8000/channels
-import asyncio
 from contextlib import asynccontextmanager
 
 from pathlib import Path
@@ -11,7 +10,9 @@ from fastapi.staticfiles import StaticFiles
 from app.database.database import create_database
 from app.database.models import get_all_posts
 from app.rss.rss import generate_rss
-from app.telegram.telegram_client import start_telegram
+from app.telegram.telegram_client import start_telegram, client as telegram_client
+from app.telegram.supervisor import TelegramSupervisor
+from app.api.health import router as health_router
 from app.api.channels import router as channels_router
 from app.dashboard.routes import router as dashboard_router
 from app.translation.worker import TranslationWorker
@@ -21,12 +22,12 @@ async def lifespan(app: FastAPI):
     create_database()
     app.state.translation_worker = TranslationWorker()
     await app.state.translation_worker.start()
-    app.state.telegram_task = asyncio.create_task(start_telegram())
+    app.state.telegram_supervisor = TelegramSupervisor(start_telegram, telegram_client.is_connected)
+    app.state.telegram_task = app.state.telegram_supervisor.start()
     try:
         yield
     finally:
-        app.state.telegram_task.cancel()
-        await asyncio.gather(app.state.telegram_task, return_exceptions=True)
+        await app.state.telegram_supervisor.stop()
         await app.state.translation_worker.stop()
 
 
@@ -34,6 +35,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(channels_router)
 app.include_router(dashboard_router)
+app.include_router(health_router)
 
 MEDIA_FOLDER = Path("data/media")
 MEDIA_FOLDER.mkdir(parents=True, exist_ok=True)

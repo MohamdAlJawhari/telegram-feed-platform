@@ -2,6 +2,8 @@
 
 A FastAPI application that listens for posts from selected Telegram channels, stores them locally, downloads attached media, and exposes the collected content through a dashboard, JSON API, and per-channel RSS feeds.
 
+For the Windows Server deployment story, current configuration, troubleshooting, and remaining work, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
 ## Features
 
 - Add and manage Telegram channels from a web dashboard

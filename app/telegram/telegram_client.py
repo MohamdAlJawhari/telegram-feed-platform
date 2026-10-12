@@ -8,6 +8,7 @@ from telethon import TelegramClient, events
 from app.database.models import upsert_channel, save_post, is_channel_enabled, get_all_channels
 from app.media.media_service import download_media
 from app.telegram.channel_photos import ChannelPhotoCache
+from app.telegram.supervisor import TelegramAuthorizationRequired
 
 # --------------------------------------------------
 # Configuration
@@ -159,13 +160,24 @@ async def test_connection(
 # Start continuous Telegram listener
 # --------------------------------------------------
 
-async def start_telegram() -> None:
+async def start_telegram(on_connected=None) -> None:
     """Keep listening for new Telegram messages."""
 
     photo_task = None
     try:
-        await client.start()
+        # Services must use the saved session, never prompt for a login code.
+        async def connect_authorized():
+            await client.connect()
+            if not await client.is_user_authorized():
+                raise TelegramAuthorizationRequired()
+
+        await asyncio.wait_for(connect_authorized(), timeout=45)
+        # The event handler is already registered. Request missed updates using
+        # Telegram's saved session state; this is not a full history import.
+        await client.catch_up()
         photo_task = asyncio.create_task(ChannelPhotoCache(client, get_all_channels).run())
+        if on_connected is not None:
+            on_connected()
         print("✅ Telegram connected.")
         print("Waiting for new messages...")
         await client.run_until_disconnected()
