@@ -192,13 +192,64 @@ The existing Caddy configuration protects these endpoints with the administrator
 
 The update consists of the updated `main.py` and `app/telegram/telegram_client.py`, plus the new `app/telegram/supervisor.py` and `app/api/health.py`. The configuration, database, session, media, virtual environment, and service configuration were preserved. No dependency changes were required.
 
-The server's `/health` response confirmed `status: ok`, `rss_ready: true`, `database: readable`, and Telegram `status: connected`, with zero supervisor restarts since startup. The reported connection time was 12 October 2026 at 20:53:54 Beirut time (17:53:54 UTC). A new-post check after this particular update, failure recovery, and reboot verification still need to be performed.
+The server's `/health` response confirmed `status: ok`, `rss_ready: true`, `database: readable`, and Telegram `status: connected`, with zero supervisor restarts since startup. The reported connection time was 12 October 2026 at 20:53:54 Beirut time (17:53:54 UTC).
+
+After the update, the public website was tested from the administrator's own computer and a new message translated successfully. Viewing it remotely is expected: it confirms access through the public HTTPS endpoint.
+
+We stopped the Ollama service and sent a new message. The website reported translation unavailable and retained source text. After starting Ollama again, a later message translated, while the earlier one remained marked "Published without translation". This confirmed the intended final fallback behavior without retrying already published posts.
+
+We deliberately terminated the verified Python process listening on port 18080. After approximately 20 seconds, the application service was running again and `/health` reported the database readable and Telegram connected. The new connection time was 12 October 2026 at 21:46:32 Beirut time (18:46:32 UTC).
+
+The health response showed `restart_count: 0` after that process restart. This counter belongs to the in-process Telegram supervisor and starts again at zero whenever Python restarts. The Windows service crash-recovery test succeeded; the counter does not count Windows service restarts. A live listener-only failure test remains separate from the simulated supervisor tests.
+
+The administrator cannot permit an interruption to the existing Kerio mail service, so we did not reboot the shared server. A later `Win32_Service` check confirmed all three services were `Running` with `StartMode: Auto`. Full reboot recovery remains unverified. Do not reboot or stop Kerio for this deployment. GPU use under the Ollama service account also remains unverified.
 
 ## What remains before deployment is finished
 
-1. **Recovery verification:** confirm new posts after the supervision update, test disconnecting Remote Desktop, process crashes, and a full server reboot. Verify that new posts arrive after recovery and that Ollama failures produce the expected source-text RSS fallback. Confirm GPU use under the Ollama service account. A reboot also interrupts Kerio, so choose an acceptable time for the shared server.
-2. **Backups:** schedule consistent SQLite backups plus media, session, and configuration backups to storage outside the server. Test restoring them. This is not configured yet.
-3. **External monitoring:** check a public RSS endpoint from outside the server and configure failure alerts. This is not configured yet.
+1. **External monitoring:** check a public RSS endpoint from outside the server and configure failure alerts. This is the remaining deployment setup step and is not configured yet.
+
+Local daily backups are operational. External storage is not configured, and no private off-server ZIP copy has been confirmed; a backup only on this server does not protect against losing the server. A full application restore rehearsal also remains outstanding.
+
+Full reboot recovery is deliberately untested because the shared mail server cannot be interrupted. Confirm the automatic start modes without restarting Windows. Remote Desktop disconnection, a live listener-only failure, new post reception after crash recovery, and GPU use can be checked separately where appropriate; do not treat them as already verified.
+
+## 8. We created the first local backup and scheduled daily runs
+
+The administrator has no external backup storage yet. We prepared `scripts/backup.py` to create automatic daily backups on the server first. This does not replace an off-server copy: losing the server or its disk could also lose these backups.
+
+The script uses Python's standard library and SQLite's online backup API. It does not stop the application, Ollama, Caddy, or Kerio. The application database and Telegram session are copied as separate consistent SQLite snapshots, including committed WAL data. Media and other files are copied during the run, so the entire backup is not one transaction across all files.
+
+The ZIP includes:
+
+- Application code, production dependency list, `.env`, and the application service XML.
+- Database, saved Telegram session, and downloaded media.
+- Caddy configuration, service XML, and certificate storage.
+- Ollama service XML, plus the DuckDNS updater and private token.
+
+It excludes Ollama models/binaries, Python installations/virtual environments, caches, logs, and old backup folders. Five isolated tests passed, including restoring the database and session from an archive while a live WAL database connection stayed open. These tests used fabricated data and credentials, not the deployed server data.
+
+The destination is `C:\TelegramFeedBackups`, restricted to SYSTEM and administrators. Backups contain credentials and session authorization; they are not encrypted ZIP files and must remain private. They are not served by the website. After a successful archive integrity check, the tool retains the latest seven completed archives. Failed backups are not published as completed ZIPs and do not prune older successful backups.
+
+We registered `TelegramFeed-DailyBackup`, running as SYSTEM daily at 03:00 server-local time, with missed runs started when available. Its script command is:
+
+```powershell
+C:\Python313\python.exe C:\TelegramFeed\scripts\backup.py --output C:\TelegramFeedBackups --keep 7
+```
+
+The latest result is recorded in `C:\TelegramFeedBackups\last-result.json`. Archive names use UTC timestamps.
+
+The first manual server run succeeded and produced an archive of 590,449,668 bytes (about 563 MiB). Its independent archive verification also passed. It completed on 12 October 2026 at 22:07:30 Beirut time (19:07:30 UTC).
+
+We then started the scheduled task manually to test its SYSTEM account. The initial task-info response reported `LastTaskResult: 267009` (hexadecimal `0x41301`, task still running). The result JSON still described the earlier manual backup, so it did not yet confirm scheduled-run completion.
+
+The subsequent check showed the task back in `Ready` state and a new successful result for `telegram-feed-20261012T191010477687Z-cd7f2921.zip`, containing 590,449,676 bytes. It completed on 12 October 2026 at 22:10:37 Beirut time (19:10:37 UTC), confirming the scheduled SYSTEM-account run succeeded. PowerShell's combined output did not display a numeric exit code in that later check; completion was verified through the new archive and successful result JSON. Daily runs are scheduled for 03:00 server-local time, with the next run listed as 13 October 2026.
+
+To verify a completed archive without restoring over live files:
+
+```powershell
+C:\Python313\python.exe C:\TelegramFeed\scripts\backup.py --verify "C:\TelegramFeedBackups\YOUR_BACKUP.zip"
+```
+
+This checks expected archive contents and CRC integrity; it does not prove that the entire application can be restored successfully on another server. Copying a verified backup privately to the administrator's own computer provides an interim off-server copy. Automatic off-server storage and a full restore rehearsal remain future work.
 
 Automatic startup brings services back after Windows boots. It cannot serve RSS while the entire server is powered off or disconnected. Continuous availability through a complete server outage would require another host or an externally hosted feed copy.
 
