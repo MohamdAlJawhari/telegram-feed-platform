@@ -4,6 +4,8 @@ A FastAPI application that listens for posts from selected Telegram channels, st
 
 For the Windows Server deployment story, current configuration, troubleshooting, and remaining work, see [DEPLOYMENT.md](DEPLOYMENT.md).
 
+For an explanation of the deployment choices, commands, and lessons to apply to other projects, see [DEPLOYMENT_LEARNING.md](DEPLOYMENT_LEARNING.md).
+
 ## Features
 
 - Add and manage Telegram channels from a web dashboard

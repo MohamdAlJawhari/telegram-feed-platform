@@ -206,7 +206,7 @@ The administrator cannot permit an interruption to the existing Kerio mail servi
 
 ## What remains before deployment is finished
 
-1. **External monitoring:** check a public RSS endpoint from outside the server and configure failure alerts. This is the remaining deployment setup step and is not configured yet.
+The agreed deployment setup is complete: the application is publicly available over HTTPS, management requires authentication, the three Windows services are operational, daily local backups work, and external RSS monitoring has been configured and its DOWN/recovery emails tested.
 
 Local daily backups are operational. External storage is not configured, and no private off-server ZIP copy has been confirmed; a backup only on this server does not protect against losing the server. A full application restore rehearsal also remains outstanding.
 
@@ -252,6 +252,33 @@ C:\Python313\python.exe C:\TelegramFeed\scripts\backup.py --verify "C:\TelegramF
 This checks expected archive contents and CRC integrity; it does not prove that the entire application can be restored successfully on another server. Copying a verified backup privately to the administrator's own computer provides an interim off-server copy. Automatic off-server storage and a full restore rehearsal remain future work.
 
 Automatic startup brings services back after Windows boots. It cannot serve RSS while the entire server is powered off or disconnected. Continuous availability through a complete server outage would require another host or an externally hosted feed copy.
+
+## 9. We configured and tested external RSS monitoring
+
+We selected HetrixTools as a free external website monitor. Its published free offering includes 15 monitors, one-minute checks, and notifications to the account's email address. The monitor runs outside this Windows server; no server agent or additional Windows service is needed.
+
+Create a Website monitor with these settings:
+
+| Setting | Value |
+| --- | --- |
+| Name | Unews RSS |
+| Website Link | `https://unews.duckdns.org:9443/rss/testRssN8n` |
+| Keyword | `</rss>` |
+| Contact List | Default Contact, with the account email verified |
+| Check frequency | 1 minute |
+| Timeout | 30 seconds |
+| Locations | Three available locations, where permitted by the plan |
+| Failure threshold | Two failed locations out of three, where supported |
+
+Keep `:9443` in the URL. The RSS endpoint is public, so the monitor needs no administrator credentials. Use an alert inbox that is accessible independently of this server.
+
+We tested alerts without interrupting the application or Kerio by temporarily changing the monitor's required keyword to `UNEWS_MONITOR_ALERT_TEST_20261012`. HetrixTools sent a DOWN email noticed at 12 October 2026 at 22:45:41 Beirut time (UTC+03:00). New York, Amsterdam, and Frankfurt all reported "keyword not found", confirming that the external locations reached the feed but intentionally failed the test condition.
+
+After restoring the normal check, the administrator confirmed the monitor returned to UP in approximately one minute and sent a recovery email. Both outage and recovery notification delivery are verified. The permanent keyword must remain `</rss>`; the temporary test keyword must not be left in the configuration. This test simulated a content-check failure, not an actual server outage.
+
+This monitor checks whether the public feed responds and contains the RSS closing tag. It does not verify translation quality or that Telegram has delivered a recent new post.
+
+HetrixTools' free-account policy requires a login at least once every 90 days to keep the account active. Configure a personal reminder if using the free plan. See [monitor setup](https://docs.hetrixtools.com/add-a-website-uptime-monitor/), [contact lists](https://docs.hetrixtools.com/how-do-contact-lists-work/), and [free-account activity](https://docs.hetrixtools.com/free-accounts-inactivity/).
 
 ## Everyday checks and maintenance
 

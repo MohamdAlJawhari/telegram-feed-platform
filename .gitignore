@@ -52,6 +52,6 @@ dist/
 Thumbs.db
 Desktop.ini
 
-URLs.txt
+Server.txt
 *.translation.lock
 translation_benchmark_results*.json
