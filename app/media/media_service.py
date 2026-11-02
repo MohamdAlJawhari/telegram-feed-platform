@@ -5,6 +5,10 @@ from pathlib import Path
 
 MEDIA_ROOT = Path("data/media")
 
+def media_downloads_enabled() -> bool:
+    """One switch for Telegram attachments and channel avatar downloads."""
+    return os.getenv("DOWNLOAD_MEDIA", "true").strip().lower() in {"true", "1", "yes", "on"}
+
 def get_media_root() -> Path:
     """
     Returns the root media folder.
@@ -57,6 +61,9 @@ async def download_media(message, channel_id: str, channel_username: str = "",):
     """
     Download one Telegram media file.
     """
+
+    if not media_downloads_enabled():
+        return None
 
     # Public usernames are readable and globally unique. Channels without a
     # username fall back to their stable Telegram ID.

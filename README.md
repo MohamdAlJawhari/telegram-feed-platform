@@ -72,8 +72,21 @@ BASE_URL=http://127.0.0.1:8000
 | `TELEGRAM_API_ID` | Yes | Numeric Telegram application ID |
 | `TELEGRAM_API_HASH` | Yes | Telegram application hash |
 | `BASE_URL` | No | Public application URL used for RSS media links; defaults to `http://127.0.0.1:8000` |
+| `DOWNLOAD_MEDIA` | No | Defaults to `true`. Set to `false` to stop attachment and channel profile photo downloads; restart the application afterward. |
 
 Do not commit the `.env` file or Telegram session files. Both are excluded by `.gitignore`.
+
+To save bandwidth and disk space, add `DOWNLOAD_MEDIA=false` to `.env` and
+restart the application. New posts still save their text/captions and original
+message type, and translation continues. New posts have no local attachment or
+RSS media enclosure; a media-only post has no text body. Existing downloaded
+files and their links remain available. Turning downloads back on affects future
+posts only; skipped attachments are not automatically downloaded later.
+This setting also stops channel avatar refreshes; cached avatars remain visible.
+Telegram text and update traffic still uses some internet data.
+
+See [Windows Server media configuration](DEPLOYMENT.md#disable-media-downloads)
+for the existing service setup.
 
 ## Running the application
 

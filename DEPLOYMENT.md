@@ -317,6 +317,115 @@ For future code updates, back up first, stop the application service, and replac
 
 Never publish the DuckDNS token, Telegram credentials, session files, or administrator password in GitHub or this document.
 
+## Disable media downloads
+
+The development code now supports `DOWNLOAD_MEDIA=false`. This section describes
+how to deploy that change; it has not been applied or verified on the server.
+
+1. Back up the application using the existing backup procedure.
+2. In Administrator PowerShell on the server, stop only the application:
+
+   ```powershell
+   Stop-Service TelegramFeed
+   ```
+
+3. Copy these updated files from this workspace into the matching paths under
+   `C:\TelegramFeed`: `app\media\media_service.py`,
+   `app\telegram\telegram_client.py`, and `app\telegram\channel_photos.py`.
+   Preserve the server's `.env`, database, sessions, and data. Use the existing
+   deployment permissions so LocalService can read the updated code. No new
+   dependencies are needed.
+4. Edit the server's configuration:
+
+   ```powershell
+   notepad C:\TelegramFeed\.env
+   ```
+
+   Add or replace the setting so it appears once, then save:
+
+   ```dotenv
+   DOWNLOAD_MEDIA=false
+   ```
+
+   If the service XML explicitly defines `DOWNLOAD_MEDIA`, remove that override
+   or also set it to `false`; process environment values take precedence over `.env`.
+5. Start the application and check Telegram connectivity:
+
+   ```powershell
+   Start-Service TelegramFeed
+   Get-Service TelegramFeed
+   Invoke-RestMethod http://127.0.0.1:18080/health/telegram
+   ```
+
+Send a new post with a caption and attachment to a tracked channel. Confirm the
+caption appears in the dashboard/RSS without an attachment, and no new attachment
+file appears in `C:\TelegramFeed\data\media`. Channel profile photo downloads
+also stop. Text collection, translation, and Telegram updates still use their
+normal resources. Leave Caddy, Ollama, and Kerio running; no reboot is needed.
+
+Existing downloaded files are retained and existing posts may still link to them.
+This setting prevents future growth; it does not free existing disk space.
+Removing old files would break their existing dashboard/RSS links, and retained
+backups may contain additional copies. No files are deleted by this change.
+To resume future downloads, set `DOWNLOAD_MEDIA=true` and restart `TelegramFeed`;
+previously skipped attachments are not backfilled.
+
+## Clean up data older than seven days
+
+Copy `scripts\cleanup.py` from the development workspace to
+`C:\TelegramFeed\scripts\cleanup.py`. It uses only Python's standard library.
+It has been tested with temporary data; no server cleanup has been run.
+
+Preview media cleanup from Administrator PowerShell:
+
+```powershell
+Set-Location C:\TelegramFeed
+.\.venv\Scripts\python.exe scripts\cleanup.py --days 7
+```
+
+The preview reports a UTC cutoff, file count and estimated GiB. The cutoff is
+seven rolling 24-hour periods before execution. To also remove posts older than
+that cutoff, including their saved translations, add `--delete-posts`:
+
+```powershell
+.\.venv\Scripts\python.exe scripts\cleanup.py --days 7 --delete-posts
+```
+
+After reviewing the preview and making a backup, stop only TelegramFeed and
+apply your selected cleanup. This example removes both old posts and media:
+
+```powershell
+Stop-Service TelegramFeed
+try {
+    .\.venv\Scripts\python.exe scripts\cleanup.py --days 7 --delete-posts --apply
+    if ($LASTEXITCODE -ne 0) { throw 'Cleanup failed; inspect the error above.' }
+}
+finally {
+    Start-Service TelegramFeed
+}
+Invoke-RestMethod http://127.0.0.1:18080/health/telegram
+```
+
+Omit `--delete-posts` from both preview and apply to keep all post text and saved
+translations while removing only old attachments. Media references are cleared
+in SQLite before files are removed, preventing broken enclosure links. A failure
+between the database update and file removal can leave unreferenced files on disk.
+Such files are eligible on a later run once their file modification time is old
+enough. No deletion runs automatically or on a schedule.
+
+Linked media uses the Telegram post date; shared files stay if any referencing
+post is newer or has an unparseable date. Unreferenced files use their modification
+time. Channel profile photos, settings, credentials, Telegram sessions, and backup
+archives are retained. Old posts with unparseable dates are retained. Database
+space is reclaimed with `VACUUM` after full post cleanup; allow free disk space
+for SQLite to rebuild the database. Only files inside the project's media folder
+are selected; directory links are not traversed.
+
+Deleting older posts can remove them from RSS immediately, including quiet
+channels whose latest posts are more than seven days old. Existing backup archives
+still consume their original space; cleanup does not modify them. Caddy, Ollama,
+and Kerio can remain running throughout.
+
 ## References
 
 - [Docker Desktop support on Windows](https://docs.docker.com/desktop/setup/install/windows-install/)

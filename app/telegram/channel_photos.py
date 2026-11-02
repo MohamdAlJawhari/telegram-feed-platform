@@ -10,7 +10,7 @@ from pathlib import Path
 from telethon.errors import FloodWaitError
 from telethon.tl.types import PeerChannel
 
-from app.media.media_service import get_media_root
+from app.media.media_service import get_media_root, media_downloads_enabled
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,8 @@ class ChannelPhotoCache:
         self.telegram_retry_after = 0
 
     async def refresh_channel(self, channel):
+        if not media_downloads_enabled():
+            return
         channel_id = str(channel["channel_id"])
         now = time.time()
         if now < max(self.telegram_retry_after, self.retry_after.get(channel_id, 0)):

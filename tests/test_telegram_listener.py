@@ -9,6 +9,33 @@ from app.telegram.supervisor import TelegramAuthorizationRequired
 
 
 class TelegramListenerTest(unittest.IsolatedAsyncioTestCase):
+    async def test_disabled_media_preserves_caption_and_type_without_download(self):
+        module = self.load_listener(self.fake_client())
+        channel = SimpleNamespace(id=123, title="News", username="news")
+        message = SimpleNamespace(
+            id=90, photo=True, text="News caption", date="2026-11-02"
+        )
+        with patch.dict("os.environ", DOWNLOAD_MEDIA="false"), \
+                patch.object(module, "download_media", new_callable=AsyncMock) as download, \
+                patch.object(module, "save_post") as save:
+            await module.save_telegram_message(channel, message)
+        download.assert_not_awaited()
+        self.assertEqual(save.call_args.kwargs["text"], "News caption")
+        self.assertEqual(save.call_args.kwargs["message_type"], "photo")
+        self.assertIsNone(save.call_args.kwargs["media_path"])
+
+    async def test_disabled_media_listener_skips_avatar_worker(self):
+        client = self.fake_client()
+        module = self.load_listener(client)
+        with patch.dict("os.environ", DOWNLOAD_MEDIA="false"), \
+                patch.object(module, "ChannelPhotoCache") as cache:
+            with self.assertRaises(ConnectionError):
+                await module.start_telegram()
+        cache.assert_not_called()
+        client.catch_up.assert_awaited_once()
+        client.run_until_disconnected.assert_awaited_once()
+        client.disconnect.assert_awaited_once()
+
     def load_listener(self, client):
         # Load the real listener with a fake client: no credentials, session
         # database, or Telegram network requests are used by these tests.

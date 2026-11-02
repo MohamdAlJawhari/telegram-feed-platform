@@ -11,6 +11,13 @@ from app.telegram.channel_photos import ChannelPhotoCache, cached_channel_photo_
 
 
 class ChannelPhotosTest(unittest.IsolatedAsyncioTestCase):
+    async def test_disabled_download_skips_profile_lookup_and_cache_writes(self):
+        with patch.dict(os.environ, {"DOWNLOAD_MEDIA": "false"}):
+            await self.cache.refresh_channel(self.channel)
+        self.client.get_entity.assert_not_called()
+        self.client.download_profile_photo.assert_not_called()
+        self.assertEqual(list(Path(self.directory.name).iterdir()), [])
+
     def setUp(self):
         self.directory = tempfile.TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 from telethon import TelegramClient, events
 
 from app.database.models import upsert_channel, save_post, is_channel_enabled, get_all_channels
-from app.media.media_service import download_media
+from app.media.media_service import download_media, media_downloads_enabled
 from app.telegram.channel_photos import ChannelPhotoCache
 from app.telegram.supervisor import TelegramAuthorizationRequired
 
@@ -66,7 +66,7 @@ async def save_telegram_message(channel, message) -> None:
     message_type = get_message_type(message)
 
     media_path = None
-    if message_type != "text":
+    if message_type != "text" and media_downloads_enabled():
         try:
             media_path = await download_media(
                 message,
@@ -175,7 +175,8 @@ async def start_telegram(on_connected=None) -> None:
         # The event handler is already registered. Request missed updates using
         # Telegram's saved session state; this is not a full history import.
         await client.catch_up()
-        photo_task = asyncio.create_task(ChannelPhotoCache(client, get_all_channels).run())
+        if media_downloads_enabled():
+            photo_task = asyncio.create_task(ChannelPhotoCache(client, get_all_channels).run())
         if on_connected is not None:
             on_connected()
         print("✅ Telegram connected.")

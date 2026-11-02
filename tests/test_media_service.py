@@ -1,6 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import app.media.media_service as media_service
 
@@ -19,6 +20,17 @@ class FakeMessage:
 
 
 class MediaServiceTest(unittest.IsolatedAsyncioTestCase):
+    async def test_disabled_download_uses_no_network_or_storage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory) / "media"
+            with patch.object(media_service, "MEDIA_ROOT", root), patch.dict(
+                "os.environ", {"DOWNLOAD_MEDIA": "false"}
+            ):
+                message = FakeMessage()
+                self.assertIsNone(await media_service.download_media(message, "12345"))
+                self.assertEqual(message.download_count, 0)
+                self.assertFalse(root.exists())
+
     async def test_media_is_downloaded_once_to_stable_channel_folder(self):
         original_media_root = media_service.MEDIA_ROOT
 
