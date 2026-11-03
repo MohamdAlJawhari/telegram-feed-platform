@@ -263,7 +263,7 @@ def get_enabled_channels():
 def get_channel_by_username(username):
     conn = get_connection()
     try:
-        row = conn.execute("SELECT * FROM channels WHERE channel_username = ? COLLATE NOCASE", (username,)).fetchone()
+        row = conn.execute("SELECT * FROM channels WHERE lower(channel_username) = lower(?)", (username,)).fetchone()
         return dict(row) if row else None
     finally:
         conn.close()

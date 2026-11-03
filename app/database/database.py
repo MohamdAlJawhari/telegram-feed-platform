@@ -8,6 +8,25 @@ def get_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
+def create_query_indexes(connection):
+    """Add query indexes to new or existing schemas; the caller owns the transaction."""
+    # NOCASE matches the public API, while lower() matches RSS and legacy lookups.
+    # The existing (channel_id, message_id) unique index serves message identity,
+    # but cannot also provide the dashboard's insertion-order post history.
+    statements = (
+        "CREATE INDEX IF NOT EXISTS posts_username_nocase_id "
+        "ON posts(channel_username COLLATE NOCASE, id DESC)",
+        "CREATE INDEX IF NOT EXISTS posts_channel_id_id ON posts(channel_id, id DESC)",
+        "CREATE INDEX IF NOT EXISTS posts_username_lower_id ON posts(lower(channel_username), id DESC)",
+        "CREATE INDEX IF NOT EXISTS channels_username_lower ON channels(lower(channel_username))",
+        "CREATE INDEX IF NOT EXISTS post_translations_current_job_id ON post_translations(current_job_id)",
+        "CREATE INDEX IF NOT EXISTS channel_settings_translation_enabled "
+        "ON channel_settings(channel_id) WHERE translation_enabled = 1",
+    )
+    for statement in statements:
+        connection.execute(statement)
+
+
 def create_database():
     conn = get_connection()
     try:
@@ -172,6 +191,7 @@ def create_database():
                 FOREIGN KEY(post_id) REFERENCES posts(id)
             )
         """)
+        create_query_indexes(conn)
         conn.commit()
     except Exception:
         conn.rollback()
