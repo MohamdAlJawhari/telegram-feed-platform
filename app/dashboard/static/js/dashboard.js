@@ -1,6 +1,10 @@
 (() => {
     const searchInput = document.getElementById("search");
     const cards = [...document.querySelectorAll(".channel-card")];
+    const channelList = document.querySelector('.channels');
+    const sortSelect = document.getElementById('channel-sort');
+    const cardsByUsername = new Map(cards.map(card => [card.dataset.username, card]));
+    const nameCollator = new Intl.Collator(undefined, { sensitivity: 'base', numeric: true });
     const noResults = document.getElementById("no-search-results");
     const toast = document.getElementById("copy-toast");
     const translationDialog = document.getElementById("translation-channels-dialog");
@@ -27,6 +31,44 @@
     let toastTimer;
     let latestPostsRefreshId = 0;
     const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+    function timestamp(value) {
+        if (!value) return 0;
+        // SQLite timestamps are UTC but omit the timezone suffix.
+        let normalized = value.replace(' ', 'T');
+        if (!/(Z|[+-]\d{2}:?\d{2})$/i.test(normalized)) normalized += 'Z';
+        return Date.parse(normalized) || 0;
+    }
+
+    function sortChannels() {
+        const byName = (a, b) => nameCollator.compare(a.dataset.title, b.dataset.title) ||
+            nameCollator.compare(a.dataset.username, b.dataset.username);
+        const byLatest = (a, b) => timestamp(b.dataset.latestPost) - timestamp(a.dataset.latestPost);
+        const sorted = [...cards].sort((a, b) => {
+            switch (sortSelect.value) {
+                case 'newest': return timestamp(b.dataset.createdAt) - timestamp(a.dataset.createdAt) || byName(a, b);
+                case 'name': return byName(a, b);
+                case 'name-desc': return byName(b, a);
+                case 'active': return Number(b.dataset.enabled === 'true') - Number(a.dataset.enabled === 'true') || byLatest(a, b) || byName(a, b);
+                default: return byLatest(a, b) || byName(a, b);
+            }
+        });
+        const current = [...channelList.querySelectorAll('.channel-card')];
+        if (sorted.every((card, index) => card === current[index])) return;
+        const focused = document.activeElement;
+        sorted.forEach(card => channelList.appendChild(card));
+        if (focused && channelList.contains(focused)) focused.focus({ preventScroll: true });
+    }
+
+    try {
+        const saved = localStorage.getItem('channels-sort');
+        if ([...sortSelect.options].some(option => option.value === saved)) sortSelect.value = saved;
+    } catch (_) { /* Use the default when storage is unavailable. */ }
+    sortChannels();
+    sortSelect.addEventListener('change', () => {
+        sortChannels();
+        try { localStorage.setItem('channels-sort', sortSelect.value); } catch (_) { /* Storage may be blocked. */ }
+    });
 
     function updatePostTime(element, value) {
         const date = new Date(value);
@@ -120,6 +162,8 @@
             if (refreshId !== latestPostsRefreshId) return;
 
             channels.forEach(channel => {
+                const card = cardsByUsername.get(channel.channel_username);
+                if (card) card.dataset.latestPost = channel.latest_post_date || '';
                 window.ChannelAvatars.update(channel);
                 const element = document.getElementById(`latest-${channel.channel_username}`);
                 if (element) {
@@ -128,6 +172,7 @@
                     if (time) updatePostTime(time, channel.latest_post_date);
                 }
             });
+            sortChannels();
         } catch (error) {
             console.error("Could not refresh latest posts:", error);
             cards.forEach(card => {

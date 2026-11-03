@@ -274,7 +274,8 @@ def get_all_channels():
             channel_id,
             channel_title,
             channel_username,
-            enabled
+            enabled,
+            created_at
         FROM channels
         ORDER BY channel_title
     """)

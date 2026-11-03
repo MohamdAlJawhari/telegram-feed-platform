@@ -6,18 +6,34 @@
     const label = document.getElementById("translation-service-label");
     let stopped = false;
 
+    if (panel.tagName === 'DETAILS') {
+        panel.addEventListener('keydown', event => {
+            if (event.key === 'Escape') {
+                panel.open = false;
+                panel.querySelector('summary').focus();
+            }
+        });
+        document.addEventListener('click', event => {
+            if (!panel.contains(event.target)) panel.open = false;
+        });
+    }
+
     function showSummary(data) {
         if (data.state === "checking") {
+            panel.dataset.tone = "neutral";
             label.textContent = "Checking";
             status.textContent = "Checking the translation service.";
         } else if (["paused", "unavailable", "stopped"].includes(data.state)) {
-            label.textContent = "Temporarily unavailable";
+            panel.dataset.tone = "warning";
+            label.textContent = "Unavailable";
             status.textContent = "News continues through RSS in its original language.";
         } else if (data.running || data.waiting) {
+            panel.dataset.tone = "progress";
             label.textContent = "Translating";
             const running = data.running || 0, waiting = data.waiting || 0;
             status.textContent = `${running} ${running === 1 ? "post" : "posts"} in progress, ${waiting} waiting.`;
         } else {
+            panel.dataset.tone = "success";
             label.textContent = "Ready";
             status.textContent = "Translation is available.";
         }

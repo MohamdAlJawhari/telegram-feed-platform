@@ -5,31 +5,28 @@ body {
 }
 
 .translation-activity {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-    margin: 22px 0;
-    padding: 16px 20px;
-    border: 1px solid #dbe5f0;
-    border-radius: 14px;
-    background: #fff;
+    --service-color: #69768a;
+    position: relative;
+    max-width: 100%;
+    margin-left: auto;
+    font-size: .78rem;
 }
-
-.translation-activity h2 { margin: 0; font-size: 1rem; }
-.translation-activity p { margin: 3px 0 0; overflow-wrap: anywhere; color: #52627a; font-size: .88rem; }
-.translation-service-heading { display: flex; align-items: center; gap: 9px; color: #1769d2; flex: 0 0 auto; }
-.translation-service-summary { border-left: 1px solid #e0e6ef; padding-left: 20px; }
-.translation-service-summary strong { font-size: .88rem; }
-.translation-activity[data-state="ready"] .translation-service-summary strong { color: #21613e; }
-.translation-activity[data-state="paused"] .translation-service-summary strong,
-.translation-activity[data-state="unavailable"] .translation-service-summary strong,
-.translation-activity[data-state="stopped"] .translation-service-summary strong { color: #80571d; }
+.translation-activity[data-tone="success"] { --service-color: #21613e; }
+.translation-activity[data-tone="progress"] { --service-color: #1769d2; }
+.translation-activity[data-tone="warning"] { --service-color: #80571d; }
+.translation-activity summary { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid #dbe5f0; border-radius: 999px; background: #fff; color: #52627a; cursor: pointer; list-style: none; }
+.translation-activity summary::-webkit-details-marker { display: none; }
+.translation-activity summary:hover, .translation-activity[open] summary { border-color: #bacce3; background: #f9fbff; }
+.translation-activity summary:focus-visible { outline: 3px solid #1769d2; outline-offset: 3px; }
+.service-dot { flex: 0 0 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--service-color); }
+#translation-service-label { padding-left: 8px; border-left: 1px solid #e0e6ef; color: var(--service-color); font-weight: 600; }
+.service-chevron { width: 14px; height: 14px; flex-basis: 14px; transition: transform .2s; }
+.translation-activity[open] .service-chevron { transform: rotate(180deg); }
+.translation-service-details { position: absolute; top: calc(100% + 8px); right: 0; z-index: 5; width: 280px; max-width: calc(100vw - 28px); padding: 14px 16px; border: 1px solid #dbe5f0; border-radius: 12px; background: #fff; box-shadow: 0 8px 28px #17203314; }
+.translation-service-details > strong { color: #172033; font-size: .8rem; }
+.translation-service-details p { margin: 6px 0 0; color: #52627a; line-height: 1.6; overflow-wrap: anywhere; }
 .icon-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
 .ui-icon { flex: 0 0 20px; vertical-align: middle; }
-.translation-activity > div > p,
-.translation-memory-note { color: #69768a; font-size: 0.9rem; }
-.translation-activity[data-state="paused"],
-.translation-activity[data-memory-state="critical"] { border-color: #d89a55; }
 
 .dashboard-page {
     width: min(1440px, calc(100% - 48px));
@@ -39,7 +36,8 @@ body {
 
 .dashboard-header {
     display: flex;
-    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
     align-items: center;
     margin-bottom: 28px;
 }
@@ -53,10 +51,13 @@ body {
 }
 
 .dashboard-header h1 {
-    margin: 4px 0;
-    font-size: clamp(2rem, 4vw, 2.7rem);
-    letter-spacing: -0.035em;
+    margin: 0 0 6px;
+    color: #14171f;
+    font-size: clamp(1.5rem, 4vw, 2rem);
+    line-height: 1.1;
+    letter-spacing: -0.03em;
 }
+.dashboard-header p { font-size: .85rem; }
 
 .dashboard-header p,
 .section-title p {
@@ -66,14 +67,11 @@ body {
 
 .header-mark {
     display: grid;
-    width: 58px;
-    height: 58px;
+    width: 64px;
+    height: 64px;
+    flex: 0 0 64px;
     place-items: center;
-    border-radius: 17px;
-    background: linear-gradient(135deg, #3195f3, #1769d2);
-    box-shadow: 0 10px 24px rgba(25, 118, 210, 0.25);
-    color: #fff;
-    font-size: 1.65rem;
+    border-radius: 16px;
 }
 .header-mark img { display: block; width: 100%; height: 100%; border-radius: inherit; }
 
@@ -226,6 +224,10 @@ body {
 
 .section-title h2 { margin: 0 0 3px; font-size: 1.45rem; }
 .channel-count { flex: 0 0 auto; padding: 5px 10px; border-radius: 999px; background: #eaf3ff; color: #1769d2; font-size: 0.82rem; font-weight: 700; }
+.channel-list-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.channel-sort { display: inline-flex; align-items: center; gap: 8px; color: #69768a; font-size: .78rem; }
+.channel-sort select { max-width: 100%; padding: 8px 10px; border: 1px solid #d3dce8; border-radius: 8px; background: #fff; color: #344054; font: inherit; cursor: pointer; }
+.channel-sort select:focus-visible { outline: 3px solid #1769d2; outline-offset: 2px; }
 
 .channels {
     display: grid;
@@ -354,12 +356,13 @@ body {
 
 @media (max-width: 760px) {
     .dashboard-page { width: min(100% - 28px, 1440px); padding-top: 25px; }
-    .header-mark { display: none; }
+    .dashboard-header { gap: 12px; }
+    .header-mark { width: 48px; height: 48px; flex-basis: 48px; border-radius: 12px; }
     .statistics { grid-template-columns: repeat(2, 1fr); }
     .channel-controls { grid-template-columns: 1fr; gap: 18px; }
     .channels { grid-template-columns: 1fr; }
-    .translation-activity { align-items: flex-start; flex-direction: column; gap: 10px; }
-    .translation-service-summary { border-left: 0; padding-left: 0; }
+    .translation-activity { margin-left: 0; }
+    .translation-service-details { left: 0; right: auto; }
 }
 
 @media (max-width: 480px) {
@@ -368,7 +371,7 @@ body {
     .input-group { align-items: stretch; flex-wrap: wrap; }
     .input-group input { width: calc(100% - 35px); }
     .input-group button { width: 100%; min-height: 43px; }
-    .section-title { align-items: start; }
+    .section-title { align-items: start; flex-wrap: wrap; gap: 10px; }
     .channel-count { font-size: .75rem; }
     .channel-card-header { align-items: flex-start; }
     .actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
