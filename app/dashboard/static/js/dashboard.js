@@ -66,7 +66,12 @@
     }
 
     async function copyLink(path) {
-        const text = window.location.origin + path;
+        const url = new URL(path, window.location.origin);
+        if (url.hostname === "unews.duckdns.org" && url.pathname.startsWith("/rss/")) {
+            url.protocol = "http:";
+            url.port = "";
+        }
+        const text = url.href;
 
         try {
 
