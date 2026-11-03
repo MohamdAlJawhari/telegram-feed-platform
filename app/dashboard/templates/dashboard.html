@@ -132,11 +132,12 @@
                         </span>
                     </div>
 
-                    <div class="latest-post-block">
+                    <a class="latest-post-block" href="/telegram-feed/channel/{{ channel['channel_username'] }}"
+                       aria-label="View posts from @{{ channel['channel_username'] }}">
                         <div class="latest-post-heading"><strong>Latest post</strong><time class="latest-post-time" id="latest-time-{{ channel['channel_username'] }}"></time></div>
                         <p class="latest-post" id="latest-{{ channel['channel_username'] }}" dir="auto">Loading latest post...</p>
-                        <a class="view-posts-link" href="/telegram-feed/channel/{{ channel['channel_username'] }}">View posts {{ icon('arrow') }}</a>
-                    </div>
+                        <span class="view-posts-link">View posts {{ icon('arrow') }}</span>
+                    </a>
 
                     <div class="actions">
                         <button class="action-secondary copy-button" type="button"

@@ -21,13 +21,17 @@
         <header class="posts-header">
             {{ avatar(header_avatar, initial=channel_username[:1]) }}
             <div>
-                <span class="eyebrow">Channel posts{% if demo %} · Demo channel{% endif %}</span>
+                {% if demo %}<span class="eyebrow">Demo channel</span>{% endif %}
                 <h1>{{ 'Demo News' if demo else '@' ~ channel_username }}</h1>
                 <p>{{ 'Explore sample posts and every translation status. These examples are not published.' if demo else 'Your news, with a clear view of what reaches RSS.' }}</p>
             </div>
-            <span class="post-count">{{ posts | length }} {% if posts | length == 1 %}post{% else %}posts{% endif %}</span>
+            <div class="header-actions">
+                <span class="post-count">{{ posts | length }} {% if posts | length == 1 %}post{% else %}posts{% endif %}</span>
+                <button id="status-guide-trigger" type="button" aria-haspopup="dialog" aria-controls="status-guide" aria-expanded="false">{{ icon('help') }} Status guide</button>
+            </div>
+        </header>
+        {% if posts %}
         <div class="content-mode-bar">
-            {% if posts %}
             <div class="toolbar-control">
                 <strong>Content view</strong>
                 <div class="content-mode-toggle" role="group" aria-label="Choose post content version">
@@ -42,11 +46,19 @@
                     <button class="layout-button" type="button" data-layout="cards" aria-pressed="false">{{ icon('cards') }} Cards</button>
                 </div>
             </div>
-            <span id="content-mode-help">Showing the original message received from Telegram.</span>
-            {% endif %}
-            <button id="status-guide-trigger" type="button" aria-haspopup="dialog" aria-controls="status-guide" aria-expanded="false">{{ icon('help') }} Status guide</button>
+            <div class="post-filters" role="group" aria-label="Filter posts">
+                <button type="button" class="post-filter is-selected" data-filter="all" aria-pressed="true">All</button>
+                <button type="button" class="post-filter" data-filter="photo" aria-pressed="false">Photos</button>
+                <button type="button" class="post-filter" data-filter="text" aria-pressed="false">Text</button>
+                <button type="button" class="post-filter" data-filter="translated" aria-pressed="false">Translated</button>
+            </div>
         </div>
-        </header>
+        <div class="posts-context">
+            <strong>Latest posts</strong>
+            <span id="content-mode-help">Showing the original message received from Telegram.</span>
+            <span id="post-filter-count" role="status" aria-live="polite"></span>
+        </div>
+        {% endif %}
 
         <dialog id="status-guide" class="status-guide" aria-labelledby="status-guide-title" aria-describedby="status-guide-description">
             <header class="guide-header"><h2 id="status-guide-title">Post status guide</h2><button type="button" id="status-guide-close" aria-label="Close status guide" autofocus>{{ icon('close') }}</button></header>
@@ -65,7 +77,7 @@
 
         <section class="posts-list" data-layout="stacked" aria-label="Channel posts">
             {% for post in posts %}
-            <article class="post-card" data-post-id="{{ post['id'] }}">
+            <article class="post-card" data-post-id="{{ post['id'] }}" data-message-type="{{ post['message_type'] }}">
                 <header class="post-header">
                     <span class="post-type-icon" aria-hidden="true">{{ icon(post['message_type'] if post['message_type'] in ['photo', 'video'] else 'text') }}</span>
                     <div class="post-heading">
@@ -84,8 +96,12 @@
                     </div>
                 </header>
                 {% if demo %}<p class="demo-case">{{ post['demo_title'] }}</p>{% endif %}
-                <div class="post-content post-original" dir="auto">{{ post["text"] or "(No caption)" }}</div>
-                <div class="post-content post-published" dir="auto" hidden>{{ post["output_text"] or "(No text)" }}</div>
+                <div class="post-body">
+                <div class="post-text" id="post-text-{{ post['id'] }}">
+                    <div class="post-content post-original" dir="auto">{{ post["text"] or "(No caption)" }}</div>
+                    <div class="post-content post-published" dir="auto" hidden>{{ post["output_text"] or "(No text)" }}</div>
+                </div>
+                <button class="post-text-toggle" type="button" aria-expanded="false" aria-controls="post-text-{{ post['id'] }}" hidden>See more</button>
 
                 {% if demo and post['demo_video'] %}
                 <div class="post-media"><div class="demo-video-preview"><span aria-hidden="true">▶</span><strong>Sample video</strong><small>Video content is kept in its original form.</small></div></div>
@@ -109,6 +125,7 @@
                 </div>
                 {% endif %}
 
+                </div>
                 <footer class="post-footer">
                     <span class="rss-label">{{ post['rss_label'] }}</span>
                     {% if demo %}<span>Demo example</span>{% else %}
@@ -125,6 +142,7 @@
             </div>
             {% endfor %}
         </section>
+        <p class="filter-empty" role="status" hidden>No posts match this filter.</p>
         <p id="post-output-refresh-status" role="status" aria-live="polite"></p>
         {% if not demo %}
         <section class="translation-activity" data-activity-url="/telegram-feed/translation-activity"

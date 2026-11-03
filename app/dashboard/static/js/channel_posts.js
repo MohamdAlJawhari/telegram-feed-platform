@@ -31,6 +31,8 @@
     const refreshStatus = document.getElementById("post-output-refresh-status");
     const list = page.querySelector(".posts-list");
     const layoutButtons = [...page.querySelectorAll(".layout-button")];
+    const filterButtons = [...page.querySelectorAll('.post-filter')];
+    let activeFilter = 'all';
     const byId = new Map(cards.map(card => [String(card.dataset.postId), card]));
     let stopped = false;
     const statusIcons = {
@@ -40,10 +42,59 @@
         "Translation failed": "alert", "Published without translation": "text", "Content processing warning": "alert"
     };
 
+    function updateTextToggles() {
+        cards.forEach(card => {
+            if (card.hidden) return;
+            const text = card.querySelector('.post-text');
+            const content = text.querySelector('.post-content:not([hidden])');
+            const toggle = card.querySelector('.post-text-toggle');
+            const expanded = text.classList.contains('is-expanded');
+            toggle.hidden = list.dataset.layout !== 'cards' ||
+                (!expanded && content.scrollHeight <= content.clientHeight + 1);
+            toggle.textContent = expanded ? 'See less' : 'See more';
+            toggle.setAttribute('aria-expanded', String(expanded));
+        });
+    }
+    function applyFilter() {
+        let visible = 0;
+        cards.forEach(card => {
+            const type = card.dataset.messageType;
+            const translated = card.querySelector('.translation-status').dataset.status === 'completed';
+            card.hidden = !(activeFilter === 'all' ||
+                (activeFilter === 'translated' && translated) ||
+                (activeFilter === 'photo' && type === 'photo') ||
+                (activeFilter === 'text' && (!type || type === 'text')));
+            if (!card.hidden) visible++;
+        });
+        filterButtons.forEach(button => {
+            const selected = button.dataset.filter === activeFilter;
+            button.classList.toggle('is-selected', selected);
+            button.setAttribute('aria-pressed', String(selected));
+        });
+        page.querySelector('.filter-empty').hidden = visible !== 0;
+        document.getElementById('post-filter-count').textContent = activeFilter === 'all'
+            ? '' : `${visible} of ${cards.length} posts`;
+        updateTextToggles();
+    }
+    filterButtons.forEach(button => button.addEventListener('click', () => {
+        activeFilter = button.dataset.filter;
+        applyFilter();
+    }));
+    cards.forEach(card => {
+        card.querySelector('.post-text-toggle').addEventListener('click', () => {
+            const expanded = card.querySelector('.post-text').classList.toggle('is-expanded');
+            if (!expanded) card.querySelector('.post-body').scrollTop = 0;
+            updateTextToggles();
+        });
+    });
+    new ResizeObserver(updateTextToggles).observe(list);
+
     function selectMode(mode) {
         cards.forEach(card => {
             card.querySelector(".post-original").hidden = mode !== "original";
             card.querySelector(".post-published").hidden = mode !== "processed";
+            card.querySelector('.post-text').classList.remove('is-expanded');
+            card.querySelector('.post-body').scrollTop = 0;
         });
         buttons.forEach(button => {
             const selected = button.dataset.contentMode === mode;
@@ -53,6 +104,7 @@
         help.textContent = mode === "original"
             ? "Showing the original message received from Telegram."
             : "Showing what RSS publishes: translations when ready, otherwise the original language with your text rules applied.";
+        updateTextToggles();
     }
 
     function selectLayout(layout) {
@@ -63,6 +115,7 @@
             button.setAttribute("aria-pressed", String(selected));
         });
         try { localStorage.setItem("posts-layout", list.dataset.layout); } catch (_) { /* Storage may be blocked. */ }
+        updateTextToggles();
     }
     let savedLayout = "stacked";
     try { savedLayout = localStorage.getItem("posts-layout") || savedLayout; } catch (_) { /* Use the default. */ }
@@ -97,6 +150,7 @@
                 card.querySelector(".translation-icon use").setAttribute("href", `#icon-${statusIcons[post.translation_label.split(" · ")[0]] || "alert"}`);
                 card.querySelector(".rss-label").textContent = post.rss_label;
             });
+            applyFilter();
             refreshStatus.textContent = "";
         } catch (error) {
             refreshStatus.textContent = "Live updates are temporarily unavailable. Showing the last loaded posts.";

@@ -69,11 +69,15 @@ class PostPresentationTest(unittest.TestCase):
         labels = {post["translation_label"].split(" · ")[0] for post in samples}
         self.assertEqual(labels, {label for label, _ in STATUS_GUIDE})
         self.assertEqual({post["message_type"] for post in samples}, {"text", "photo", "video", "document"})
-        # Content controls are within the same channel header as the title.
+        # Keep channel identity compact, with content controls in a separate toolbar.
         header = page.text.split('<header class="posts-header">')[1].split("</header>")[0]
-        self.assertIn("content-mode-help", header)
-        self.assertIn('data-layout="cards"', header)
+        self.assertNotIn('class="content-mode-bar"', header)
         self.assertIn('id="status-guide-trigger"', header)
+        toolbar = page.text.split('<div class="content-mode-bar">')[1].split('<div class="posts-context">')[0]
+        self.assertIn('data-layout="cards"', toolbar)
+        for post_filter in ("all", "photo", "text", "translated"):
+            self.assertIn(f'data-filter="{post_filter}"', toolbar)
+        self.assertIn('id="content-mode-help"', page.text)
         self.assertIn('<dialog id="status-guide"', page.text)
         self.assertNotIn('<details class="status-guide"', page.text)
         self.assertEqual(page.text.count('class="guide-entry"'), 11)
