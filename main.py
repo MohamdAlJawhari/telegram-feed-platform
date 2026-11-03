@@ -60,9 +60,10 @@ def home():
     }
 
 @app.get("/posts")
-def posts():
+def posts(channel: str | None = None):
 
-    posts = get_all_posts()
+    channel_username = channel.strip().lstrip("@") if channel is not None else None
+    posts = get_all_posts(channel_username=channel_username)
 
     result = []
 

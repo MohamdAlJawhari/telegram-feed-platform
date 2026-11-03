@@ -155,12 +155,12 @@ def is_channel_enabled(channel_id):
     return row is not None
 
 # get all posts from the database
-def get_all_posts():
+def get_all_posts(channel_username=None):
     conn = get_connection()
 
     cursor = conn.cursor()
 
-    cursor.execute("""
+    query = """
         SELECT
             channel_id,
             channel_title,
@@ -171,8 +171,13 @@ def get_all_posts():
             media_path,
             date
         FROM posts
-        ORDER BY id DESC
-    """)
+    """
+    parameters = ()
+    if channel_username is not None:
+        query += " WHERE channel_username = ? COLLATE NOCASE"
+        parameters = (channel_username,)
+    query += " ORDER BY id DESC"
+    cursor.execute(query, parameters)
 
     rows = cursor.fetchall()
 
