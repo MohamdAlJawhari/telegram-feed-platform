@@ -75,7 +75,7 @@ class PostPresentationTest(unittest.TestCase):
         self.assertIn('id="status-guide-trigger"', header)
         toolbar = page.text.split('<div class="content-mode-bar">')[1].split('<div class="posts-context">')[0]
         self.assertIn('data-layout="cards"', toolbar)
-        for post_filter in ("all", "photo", "text", "translated"):
+        for post_filter in ("all", "media", "text", "translated"):
             self.assertIn(f'data-filter="{post_filter}"', toolbar)
         self.assertIn('id="content-mode-help"', page.text)
         self.assertIn('<dialog id="status-guide"', page.text)

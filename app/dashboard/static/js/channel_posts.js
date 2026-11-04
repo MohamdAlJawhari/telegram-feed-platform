@@ -63,7 +63,7 @@
             const translated = card.querySelector('.translation-status').dataset.status === 'completed';
             card.hidden = !(activeFilter === 'all' ||
                 (activeFilter === 'translated' && translated) ||
-                (activeFilter === 'photo' && type === 'photo') ||
+                (activeFilter === 'media' && ['photo', 'video', 'document', 'audio', 'voice'].includes(type)) ||
                 (activeFilter === 'text' && (!type || type === 'text')));
             if (!card.hidden) visible++;
         });

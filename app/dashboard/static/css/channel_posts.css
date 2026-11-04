@@ -544,4 +544,4 @@ button:focus-visible, summary:focus-visible, a:focus-visible, [tabindex="0"]:foc
 #load-more-posts { padding: 12px 20px; border: 1px solid #d8dfe7; border-radius: 10px; }
 #load-more-posts[aria-disabled="true"] { opacity: .6; cursor: wait; }
 #load-more-posts[hidden] { display: none; }
-.retention-note, #post-load-status { color: #64748b; font-size: .85rem; text-align: center; }
+#post-load-status { color: #64748b; font-size: .85rem; text-align: center; }
