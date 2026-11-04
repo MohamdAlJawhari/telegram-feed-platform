@@ -12,6 +12,7 @@ For an explanation of the deployment choices, commands, and lessons to apply to 
 - Enable, pause, or delete tracked channels
 - Collect new Telegram messages in real time with Telethon
 - Store posts and channel settings in SQLite
+- Automatically keep the newest 700 posts per channel, with 50-post pages and live updates for loaded posts
 - Download photos, videos, audio, and documents locally
 - Generate RSS feeds for individual channels
 - Remove keywords, replace text, and add per-channel prefixes or suffixes
@@ -627,6 +628,25 @@ shows what the feed would publish using the current saved settings, including
 translations or source fallback. Per-post labels and friendly warnings explain
 the selection. Output refreshes every five seconds without changing the selected
 view. It also works for older posts outside the RSS feed's latest twenty items.
+The channel page initially loads 50 posts. **Load more posts** appends the next
+50 without resetting the content view, layout or filter. Filters apply to the
+posts loaded so far; live updates request only those post IDs. Without JavaScript,
+the same link opens the next page. Cursor pagination prevents new arrivals from
+shifting older page boundaries.
+
+History is automatically limited to the newest **700 messages per channel**,
+ordered by Telegram message ID. On application startup, existing excess history
+is removed before Telegram and translation workers start. Saving a post enforces
+the same limit for its channel. Deleted posts' translation jobs, queue requests,
+saved results and RSS fallbacks are removed in the same database transaction;
+running translations for removed posts are cancelled on the next worker poll.
+Unused attachments belonging to removed posts are deleted afterward. Shared
+attachments and channel avatars are preserved, and failed file deletions remain
+queued for retry on startup or subsequent post saves. Channel settings and
+Telegram login sessions are retained. SQLite reuses freed database pages; the
+database file does not automatically shrink, and existing backup archives are
+unchanged. Restart the updated application to apply the initial cleanup.
+
 RSS descriptions encode markup as literal text, and characters XML cannot
 represent are removed at serialization. The feed language is set only when all
 selected news bodies have the same known language; mixed fallback/translated

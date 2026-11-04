@@ -295,3 +295,28 @@ class TranslationOutputTest(unittest.TestCase):
         self.assertEqual(get_channel_outputs("unknown"), [])
         self.assertEqual(self.client.get("/telegram-feed/channel/unknown").status_code, 200)
         self.assertEqual(ElementTree.fromstring(generate_rss("unknown")).findall("channel/item"), [])
+
+    def test_history_cursor_and_live_updates_are_bounded_and_channel_scoped(self):
+        with closing(database.get_connection()) as conn, conn:
+            conn.executemany("""INSERT INTO posts(channel_id,channel_title,channel_username,message_id,text)
+                              VALUES ('1','News','news',?,'Event')""", [(i,) for i in range(2, 123)])
+            other_id = conn.execute("""INSERT INTO posts(channel_id,channel_title,channel_username,message_id,text)
+                                      VALUES ('2','Other','other',1,'Private other post')""").lastrowid
+        first = self.client.get('/telegram-feed/channel/news')
+        first_ids = [int(value) for value in re.findall(r'data-post-id="(\d+)"', first.text)]
+        self.assertEqual(len(first_ids), 50)
+        cursor = min(first_ids)
+        second = self.client.get(f'/telegram-feed/channel/news?before={cursor}')
+        second_ids = [int(value) for value in re.findall(r'data-post-id="(\d+)"', second.text)]
+        self.assertEqual(len(second_ids), 50)
+        self.assertFalse(set(first_ids) & set(second_ids))
+        final = self.client.get(f'/telegram-feed/channel/news?before={min(second_ids)}')
+        self.assertEqual(len(re.findall(r'data-post-id="(\d+)"', final.text)), 22)
+        self.assertNotIn('id="load-more-posts"', final.text)
+        updates = self.client.post('/telegram-feed/channel/news/output', json=[first_ids[0], second_ids[0], other_id])
+        self.assertEqual({post['id'] for post in updates.json()['posts']}, {first_ids[0], second_ids[0]})
+        self.assertEqual(self.client.post('/telegram-feed/channel/news/output', json=[]).json(), {'posts': []})
+        self.assertEqual(len(self.client.get('/telegram-feed/channel/news/output').json()['posts']), 50)
+        self.assertEqual(self.client.post('/telegram-feed/channel/news/output', json=list(range(701))).status_code, 422)
+        self.assertEqual(self.client.get('/telegram-feed/channel/news?before=-1').status_code, 422)
+        self.assertEqual(len(self.feed().findall('item')), 20)

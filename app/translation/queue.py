@@ -54,12 +54,15 @@ def release_job(job_id, token):
 
 
 def finalized_jobs(job_ids):
-    """Identify running requests whose source fallback has become final."""
+    """Cancel requests finalized by RSS or removed by history retention."""
     if not job_ids:
         return set()
     placeholders = ",".join("?" for _ in job_ids)
     with closing(get_connection()) as conn:
-        return {row[0] for row in conn.execute(f"""
-            SELECT j.id FROM translation_jobs j JOIN rss_source_fallbacks f ON f.post_id = j.post_id
-            WHERE j.id IN ({placeholders})
+        live = {row[0] for row in conn.execute(f"""
+            SELECT j.id FROM translation_jobs j
+            WHERE j.id IN ({placeholders}) AND NOT EXISTS (
+                SELECT 1 FROM rss_source_fallbacks f WHERE f.post_id = j.post_id
+            )
         """, tuple(job_ids))}
+        return set(job_ids) - live

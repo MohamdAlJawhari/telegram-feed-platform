@@ -26,7 +26,7 @@
                 <p>{{ 'Explore sample posts and every translation status. These examples are not published.' if demo else 'Your news, with a clear view of what reaches RSS.' }}</p>
             </div>
             <div class="header-actions">
-                <span class="post-count">{{ posts | length }} {% if posts | length == 1 %}post{% else %}posts{% endif %}</span>
+                <span class="post-count">{{ posts | length }} {% if posts | length == 1 %}post{% else %}posts{% endif %}{% if not demo %} loaded{% endif %}</span>
                 <button id="status-guide-trigger" type="button" aria-haspopup="dialog" aria-controls="status-guide" aria-expanded="false">{{ icon('help') }} Status guide</button>
             </div>
         </header>
@@ -142,6 +142,11 @@
             </div>
             {% endfor %}
         </section>
+        {% if next_url %}
+        <p class="load-more-container"><a id="load-more-posts" class="back-link" href="{{ next_url }}">Load more posts</a></p>
+        {% endif %}
+        <p id="post-load-status" role="status" aria-live="polite"></p>
+        {% if not demo %}<p class="retention-note">Keeping the newest 700 posts per channel. Filters apply to loaded posts.</p>{% endif %}
         <p class="filter-empty" role="status" hidden>No posts match this filter.</p>
         <p id="post-output-refresh-status" role="status" aria-live="polite"></p>
         {% if not demo %}

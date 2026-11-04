@@ -192,6 +192,8 @@ def create_database():
             )
         """)
         create_query_indexes(conn)
+        cursor.execute("CREATE TABLE IF NOT EXISTS retired_media(path TEXT PRIMARY KEY)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS translation_jobs_post_id ON translation_jobs(post_id)")
         conn.commit()
     except Exception:
         conn.rollback()

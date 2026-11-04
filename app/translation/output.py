@@ -97,7 +97,8 @@ def select_output(conn, post, settings, config, digest, unavailable_message=None
     return result
 
 
-def get_channel_outputs(channel_username, limit=None, *, publish=False, connection=None):
+def get_channel_outputs(channel_username, limit=None, *, publish=False, connection=None,
+                        before_id=None, post_ids=None):
     """Select output atomically; only RSS publishing finalizes untranslated items."""
     config = None
     base_url = None
@@ -119,11 +120,25 @@ def get_channel_outputs(channel_username, limit=None, *, publish=False, connecti
         channel = conn.execute("SELECT * FROM channels WHERE lower(channel_username) = lower(?) ORDER BY id LIMIT 1",
                                (channel_username,)).fetchone()
         channel_id = channel["channel_id"] if channel else None
-        posts = conn.execute("""
+        query = """
             SELECT * FROM posts WHERE channel_id = ? OR (
                 lower(channel_username) = lower(?) AND (channel_id IS NULL OR ? IS NULL)
-            ) ORDER BY id DESC LIMIT ?
-        """, (channel_id, channel_username, channel_id, -1 if limit is None else limit)).fetchall()
+            )
+        """
+        # Parentheses keep cursor/ID constraints inside this channel's scope.
+        query = "SELECT * FROM (" + query + ") WHERE 1=1"
+        parameters = [channel_id, channel_username, channel_id]
+        if before_id is not None:
+            query += " AND id < ?"
+            parameters.append(before_id)
+        if post_ids is not None:
+            if not post_ids:
+                return []
+            query += " AND id IN (" + ",".join("?" for _ in post_ids) + ")"
+            parameters.extend(post_ids)
+        query += " ORDER BY id DESC LIMIT ?"
+        parameters.append(-1 if limit is None else limit)
+        posts = conn.execute(query, parameters).fetchall()
         identity = conn.execute("SELECT digest FROM translation_model_identity WHERE base_url = ? AND model = ?",
                                 (base_url, config.model.strip())).fetchone() if config else None
         digest = identity[0] if identity else None

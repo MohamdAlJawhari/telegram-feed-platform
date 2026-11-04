@@ -33,6 +33,7 @@
     const layoutButtons = [...page.querySelectorAll(".layout-button")];
     const filterButtons = [...page.querySelectorAll('.post-filter')];
     let activeFilter = 'all';
+    let activeMode = 'original';
     const byId = new Map(cards.map(card => [String(card.dataset.postId), card]));
     let stopped = false;
     const statusIcons = {
@@ -80,16 +81,25 @@
         activeFilter = button.dataset.filter;
         applyFilter();
     }));
-    cards.forEach(card => {
+    function bindCard(card) {
         card.querySelector('.post-text-toggle').addEventListener('click', () => {
             const expanded = card.querySelector('.post-text').classList.toggle('is-expanded');
             if (!expanded) card.querySelector('.post-body').scrollTop = 0;
             updateTextToggles();
         });
-    });
+        card.querySelectorAll("time[datetime]").forEach(element => {
+            const date = new Date(element.dateTime);
+            if (!Number.isNaN(date.getTime())) {
+                element.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
+                element.title = element.dateTime;
+            }
+        });
+    }
+    cards.forEach(bindCard);
     new ResizeObserver(updateTextToggles).observe(list);
 
     function selectMode(mode) {
+        activeMode = mode;
         cards.forEach(card => {
             card.querySelector(".post-original").hidden = mode !== "original";
             card.querySelector(".post-published").hidden = mode !== "processed";
@@ -121,17 +131,48 @@
     try { savedLayout = localStorage.getItem("posts-layout") || savedLayout; } catch (_) { /* Use the default. */ }
     selectLayout(savedLayout);
     layoutButtons.forEach(button => button.addEventListener("click", () => selectLayout(button.dataset.layout)));
-    page.querySelectorAll("time[datetime]").forEach(element => {
-        const date = new Date(element.dateTime);
-        if (!Number.isNaN(date.getTime())) {
-            element.textContent = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(date);
-            element.title = element.dateTime;
+    const loadMore = document.getElementById('load-more-posts');
+    const loadStatus = document.getElementById('post-load-status');
+    let loading = false;
+    if (loadMore) loadMore.addEventListener('click', async event => {
+        // The link remains a working next-page fallback without JavaScript.
+        event.preventDefault();
+        if (loading) return;
+        loading = true;
+        loadMore.setAttribute('aria-disabled', 'true');
+        loadStatus.textContent = 'Loading older posts…';
+        try {
+            const response = await fetch(loadMore.href, {cache: 'no-store', signal: AbortSignal.timeout(15000)});
+            if (!response.ok) throw new Error('Could not load posts');
+            const documentPage = new DOMParser().parseFromString(await response.text(), 'text/html');
+            const newCards = [...documentPage.querySelectorAll('.post-card')];
+            newCards.forEach(card => {
+                if (byId.has(String(card.dataset.postId))) return;
+                list.append(card);
+                cards.push(card);
+                byId.set(String(card.dataset.postId), card);
+                bindCard(card);
+            });
+            const next = documentPage.getElementById('load-more-posts');
+            if (next) loadMore.href = next.getAttribute('href');
+            else loadMore.hidden = true;
+            page.querySelector('.post-count').textContent = `${cards.length} posts loaded`;
+            selectMode(activeMode);
+            applyFilter();
+            loadStatus.textContent = newCards.length ? 'Older posts loaded.' : 'No older posts remain.';
+        } catch (_) {
+            loadStatus.textContent = 'Could not load older posts. Please try again.';
+        } finally {
+            loading = false;
+            loadMore.removeAttribute('aria-disabled');
         }
     });
 
     async function refresh() {
         try {
             const response = await fetch(page.dataset.outputUrl, {
+                method: 'POST', headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(cards.map(card => Number(card.dataset.postId))),
                 cache: "no-store", signal: AbortSignal.timeout(8000)
             });
             if (!response.ok) throw new Error("Output check failed");

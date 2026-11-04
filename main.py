@@ -8,6 +8,7 @@ from fastapi.responses import Response
 from fastapi.staticfiles import StaticFiles
 
 from app.database.database import create_database
+from app.database.retention import enforce_retention
 from app.database.models import get_all_posts
 from app.rss.rss import generate_rss
 from app.telegram.telegram_client import start_telegram, client as telegram_client
@@ -20,6 +21,7 @@ from app.translation.worker import TranslationWorker
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_database()
+    enforce_retention()
     app.state.translation_worker = TranslationWorker()
     await app.state.translation_worker.start()
     app.state.telegram_supervisor = TelegramSupervisor(start_telegram, telegram_client.is_connected)

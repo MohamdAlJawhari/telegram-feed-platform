@@ -1,6 +1,7 @@
 import sqlite3
 from contextlib import closing
 from app.database.database import get_connection
+from app.database.retention import commit_with_retention
 
 # This file defines the database models and provides functions to interact with the SQLite database.
 def save_post(channel_id, channel_title, channel_username, message_id, text, message_type, media_path, date):
@@ -40,7 +41,7 @@ def save_post(channel_id, channel_title, channel_username, message_id, text, mes
                     SELECT id FROM posts WHERE channel_id = ? AND message_id = ?
                     ON CONFLICT(post_id) DO UPDATE SET revision = revision + 1
                 """, (channel_id, message_id))
-                conn.commit()
+                commit_with_retention(conn, channel_id, channel_username)
                 print(f"✅ Legacy post reconciled ({channel_id} / {message_id})")
                 return True
 
@@ -69,7 +70,7 @@ def save_post(channel_id, channel_title, channel_username, message_id, text, mes
         ))
 
         cursor.execute("INSERT INTO translation_requests(post_id) VALUES (?)", (cursor.lastrowid,))
-        conn.commit()
+        commit_with_retention(conn, channel_id, channel_username)
         print("✅ Post saved.")
         return True
 
