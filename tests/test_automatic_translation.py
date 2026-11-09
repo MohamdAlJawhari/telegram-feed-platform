@@ -2,6 +2,7 @@ import asyncio
 import tempfile
 import unittest
 from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
@@ -45,7 +46,7 @@ class AutomaticTranslationTest(unittest.IsolatedAsyncioTestCase):
         for channel in range(1, 11):
             upsert_channel(str(channel), str(channel), str(channel))
             update_channel_settings(str(channel), "", "", "", "", True, "en", "fr")
-            save_post(str(channel), str(channel), str(channel), 1, "The meeting starts at ten.", "text", None, "2026-10-09T10:00:00+00:00")
+            save_post(str(channel), str(channel), str(channel), 1, "The meeting starts at ten.", "text", None, datetime.now(timezone.utc))
 
     async def asyncTearDown(self):
         await self.worker.stop()

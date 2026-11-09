@@ -2,6 +2,7 @@ import asyncio
 import tempfile
 import unittest
 from contextlib import closing
+from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import Mock, patch
 
@@ -49,7 +50,7 @@ class TranslationRecoveryTest(unittest.IsolatedAsyncioTestCase):
             upsert_channel("1", "News", "news")
             update_channel_settings("1", "Header", "Footer", "", "", True, "en", "fr")
             def post(index):
-                save_post("1", "News", "news", index, f"English news {index}", "text", None, "2026-10-10T10:00:00+00:00")
+                save_post("1", "News", "news", index, f"English news {index}", "text", None, datetime.now(timezone.utc))
             client = ReadinessClient(error)
             launcher = Mock(return_value=Mock(poll=Mock(return_value=None)))
             worker = TranslationWorker(client=client, runtime=OllamaRuntime(launcher=launcher),

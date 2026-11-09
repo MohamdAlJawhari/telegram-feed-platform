@@ -12,7 +12,7 @@ For an explanation of the deployment choices, commands, and lessons to apply to 
 - Enable, pause, or delete tracked channels
 - Collect new Telegram messages in real time with Telethon
 - Store posts and channel settings in SQLite
-- Automatically keep the newest 700 posts per channel, with 50-post pages and live updates for loaded posts
+- Automatically keep the newest 700 posts per channel plus all posts from the past 24 hours, with 50-post pages and live updates for loaded posts
 - Download photos, videos, audio, and documents locally
 - Generate RSS feeds for individual channels
 - Remove keywords, replace text, and add per-channel prefixes or suffixes
@@ -634,8 +634,12 @@ posts loaded so far; live updates request only those post IDs. Without JavaScrip
 the same link opens the next page. Cursor pagination prevents new arrivals from
 shifting older page boundaries.
 
-History is automatically limited to the newest **700 messages per channel**,
-ordered by Telegram message ID. On application startup, existing excess history
+History automatically keeps the newest **700 messages per channel**, ordered by
+Telegram message ID, plus any additional messages published in the past **24 hours**.
+RSS feeds include all stored posts published between now minus 24 hours and now,
+using UTC, with no item-count limit. Posts with missing or invalid dates are excluded
+from RSS. The RSS URL stays the same; missing Telegram history is not fetched automatically.
+On application startup, existing excess history
 is removed before Telegram and translation workers start. Saving a post enforces
 the same limit for its channel. Deleted posts' translation jobs, queue requests,
 saved results and RSS fallbacks are removed in the same database transaction;

@@ -98,7 +98,7 @@ def select_output(conn, post, settings, config, digest, unavailable_message=None
 
 
 def get_channel_outputs(channel_username, limit=None, *, publish=False, connection=None,
-                        before_id=None, post_ids=None):
+                        before_id=None, post_ids=None, published_since=None, published_until=None):
     """Select output atomically; only RSS publishing finalizes untranslated items."""
     config = None
     base_url = None
@@ -128,6 +128,13 @@ def get_channel_outputs(channel_username, limit=None, *, publish=False, connecti
         # Parentheses keep cursor/ID constraints inside this channel's scope.
         query = "SELECT * FROM (" + query + ") WHERE 1=1"
         parameters = [channel_id, channel_username, channel_id]
+        # SQLite normalizes ISO timestamps and timezone offsets before comparison.
+        if published_since is not None:
+            query += " AND julianday(date) >= julianday(?)"
+            parameters.append(published_since.isoformat())
+        if published_until is not None:
+            query += " AND julianday(date) <= julianday(?)"
+            parameters.append(published_until.isoformat())
         if before_id is not None:
             query += " AND id < ?"
             parameters.append(before_id)

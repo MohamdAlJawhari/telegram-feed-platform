@@ -2,6 +2,7 @@ import mimetypes
 import os
 import re
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from html import escape
 from urllib.parse import quote
 
@@ -19,11 +20,15 @@ def xml_text(text):
 
 
 def generate_rss(channel_name):
+    now = datetime.now(timezone.utc)
     # Commit source decisions only after the entire feed serializes successfully.
     # This also makes output selection and late-result rejection one transaction.
     with closing(get_connection()) as conn, conn:
         conn.execute("BEGIN IMMEDIATE")
-        posts = get_channel_outputs(channel_name, limit=20, publish=True, connection=conn)
+        posts = get_channel_outputs(
+            channel_name, publish=True, connection=conn,
+            published_since=now - timedelta(hours=24), published_until=now,
+        )
         return _render_rss(channel_name, posts)
 
 

@@ -1,8 +1,9 @@
-"""Bound channel history and durably retry cleanup of retired attachments."""
+"""Keep channel history and the full RSS window; retry retired attachment cleanup."""
 
 import logging
 import sqlite3
 from contextlib import closing
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from app.database.database import get_connection
@@ -27,10 +28,11 @@ def prune_posts(conn, channel_id=None, channel_username=None):
             p.channel_id IS NULL AND lower(p.channel_username) = lower(?)
         )"""
         parameters.extend((channel_id, channel_username))
+    cutoff = datetime.now(timezone.utc) - timedelta(hours=24)
     conn.execute(f"""
         INSERT INTO retired_posts
         SELECT id FROM (
-            SELECT p.id, ROW_NUMBER() OVER (
+            SELECT p.id, p.date, ROW_NUMBER() OVER (
                 PARTITION BY CASE WHEN p.channel_id IS NOT NULL THEN 'id:' || p.channel_id
                     WHEN c.channel_id IS NOT NULL THEN 'id:' || c.channel_id
                     ELSE 'username:' || lower(p.channel_username) END
@@ -41,7 +43,8 @@ def prune_posts(conn, channel_id=None, channel_username=None):
                             WHERE lower(channel_username) = lower(p.channel_username))
             {where}
         ) WHERE position > ?
-    """, (*parameters, POSTS_PER_CHANNEL))
+            AND (julianday(date) IS NULL OR julianday(date) < julianday(?))
+    """, (*parameters, POSTS_PER_CHANNEL, cutoff.isoformat()))
     count = conn.execute("SELECT COUNT(*) FROM retired_posts").fetchone()[0]
     if not count:
         return 0

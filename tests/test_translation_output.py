@@ -3,6 +3,7 @@ import re
 import tempfile
 import unittest
 from contextlib import closing
+from datetime import datetime, timezone
 from html import unescape
 from pathlib import Path
 from unittest.mock import patch
@@ -31,6 +32,9 @@ class TranslationOutputTest(unittest.TestCase):
         db.start()
         self.addCleanup(db.stop)
         database.create_database()
+        clock = patch("app.rss.rss.datetime")
+        clock.start().now.return_value = datetime(2026, 10, 9, 12, tzinfo=timezone.utc)
+        self.addCleanup(clock.stop)
         self.config = TranslationConfig()
         self.connection = OllamaConfig()
         for replacement in (
@@ -264,10 +268,10 @@ class TranslationOutputTest(unittest.TestCase):
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertEqual(response.json()["posts"][0]["output_text"], unescape(self.feed().find("item/description").text))
 
-    def test_dashboard_can_show_posts_outside_twenty_item_feed(self):
+    def test_feed_and_dashboard_can_show_more_than_twenty_recent_posts(self):
         for index in range(2, 23):
             self.add_post(index, f"Event {index}")
-        self.assertEqual(len(self.feed().findall("item")), 20)
+        self.assertEqual(len(self.feed().findall("item")), 22)
         self.assertEqual(len(self.client.get("/telegram-feed/channel/news/output").json()["posts"]), 22)
 
     def test_viewer_asset_url_changes_when_script_changes(self):
@@ -319,4 +323,5 @@ class TranslationOutputTest(unittest.TestCase):
         self.assertEqual(len(self.client.get('/telegram-feed/channel/news/output').json()['posts']), 50)
         self.assertEqual(self.client.post('/telegram-feed/channel/news/output', json=list(range(701))).status_code, 422)
         self.assertEqual(self.client.get('/telegram-feed/channel/news?before=-1').status_code, 422)
-        self.assertEqual(len(self.feed().findall('item')), 20)
+        # Undated history is available in the dashboard but excluded from RSS.
+        self.assertEqual(len(self.feed().findall('item')), 1)

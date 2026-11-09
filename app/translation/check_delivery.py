@@ -5,6 +5,7 @@ import asyncio
 import sys
 import tempfile
 from contextlib import closing
+from datetime import datetime, timezone
 from html import unescape
 from pathlib import Path
 from xml.etree import ElementTree
@@ -40,7 +41,7 @@ async def check(live):
             update_channel_settings("delivery", **settings)
             original = "BREAKING The event starts at ten."
             save_post("delivery", "Delivery check", "delivery_check", 1, original,
-                      "text", None, "2026-10-09T10:00:00+00:00")
+                      "text", None, datetime.now(timezone.utc))
             guid = "delivery-1"
             assert "meeting" in get_channel_outputs("delivery_check")[0]["output_text"]
             print("PASS: Dashboard preview shows source without finalizing delivery.")
@@ -68,7 +69,7 @@ async def check(live):
             print("PASS: A completed translation remained available during a simulated Ollama outage.")
 
             save_post("delivery", "Delivery check", "delivery_check", 2, original,
-                      "text", None, "2026-10-09T10:01:00+00:00")
+                      "text", None, datetime.now(timezone.utc))
             assert get_channel_outputs("delivery_check")[0]["translation_status"] == "unavailable"
             assert "meeting" in item().find("description").text
             print("PASS: New posts still reached RSS in source language, with a dashboard warning.")
@@ -82,7 +83,7 @@ async def check(live):
             print("PASS: Source publication is final; recovery cannot queue it again.")
 
             save_post("delivery", "Delivery check", "delivery_check", 3, original,
-                      "text", None, "2026-10-09T10:02:00+00:00")
+                      "text", None, datetime.now(timezone.utc))
             with closing(database.get_connection()) as conn:
                 third_id = conn.execute("SELECT id FROM posts WHERE message_id = 3").fetchone()[0]
             store.enqueue_translation(third_id, config, digest)
